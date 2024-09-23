@@ -22,7 +22,7 @@ __forceinline int get_lsb_index(__mmask16 mask) {
 	return _tzcnt_u16(mask) & 0x0f;
 }
 __forceinline __mmask16 single_bit(int leading_or_trailing, __mmask16 old_mask, __mmask16 mask) {
-	if (mask == 0) return mask;
+	if (mask == 0 || old_mask == 0) return mask;
 	unsigned short lz = __lzcnt16(mask);
 	unsigned short tz = _tzcnt_u16(mask);
 	unsigned short pc = __popcnt16(mask);
@@ -37,27 +37,22 @@ __forceinline __mmask16 single_bit(int leading_or_trailing, __mmask16 old_mask, 
 		lz = __lzcnt16(mask);
 		tz = _tzcnt_u16(mask);
 		pc = __popcnt16(mask);
-
 	}
 	switch (pc) {
 	case 0:
-		//return mask;
-		break;
+		return mask;
 	case 1:
-		mask = (lz == 0 || lz >= 16) ? mask : (1 << (15 - lz));
-		break;
+		return mask = (lz == 0 || lz >= 16) ? mask : (1 << (15 - lz));
 	default:
 		//count of 1 >=2
-		mask = (leading_or_trailing
+		return mask = (leading_or_trailing
 			? ((lz == 0 || lz >= 16) ? mask : (1 << (15 - lz)))
 			: ((tz == 0 || tz >= 16) ? mask : (1 << tz))
 			);
-		break;
 	}
-	return mask;
 }
 __forceinline __mmask8 single_bit(int leading_or_trailing, __mmask8 old_mask, __mmask8 mask) {
-	if (mask == 0) return mask;
+	if (mask == 0 || old_mask == 0) return mask;
 	unsigned short lz = __lzcnt16(mask);
 	unsigned short tz = _tzcnt_u16(mask);
 	unsigned short pc = __popcnt16(mask);
@@ -76,57 +71,59 @@ __forceinline __mmask8 single_bit(int leading_or_trailing, __mmask8 old_mask, __
 
 	switch (pc) {
 	case 0:
-		break;
+		return mask;
 	case 1:
-		mask = (lz == 0 || lz >= 8) ? mask : (1 << (8 - lz));
-		break;
+		return mask = (lz == 0 || lz >= 8) ? mask : (1 << (8 - lz));
 	default:
 		//count of 1 >=2
-		mask = leading_or_trailing
+		return mask = leading_or_trailing
 			? ((lz == 0 || lz >= 8) ? mask : (1 << (8 - lz)))
 			: ((tz == 0 || tz >= 8) ? mask : (1 << tz))
 			;
-		break;
 	}
-
-	return mask;
 }
 __forceinline __m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
+	//TODO:FIX
 	uint32_t buffer[16] = { 0 };
 	if (result == nullptr) _mm512_store_epi32(result = buffer, a);
 	__mmask16 mask = 0xffff;
-	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[15] = _mm512_mask_reduce_max_epu32(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[0] = _mm512_mask_reduce_min_epu32(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[14] = _mm512_mask_reduce_max_epu32(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[1] = _mm512_mask_reduce_min_epu32(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[13] = _mm512_mask_reduce_max_epu32(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[2] = _mm512_mask_reduce_min_epu32(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[12] = _mm512_mask_reduce_max_epu32(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[3] = _mm512_mask_reduce_min_epu32(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[11] = _mm512_mask_reduce_max_epu32(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[4] = _mm512_mask_reduce_min_epu32(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[10] = _mm512_mask_reduce_max_epu32(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[5] = _mm512_mask_reduce_min_epu32(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[9] = _mm512_mask_reduce_max_epu32(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[6] = _mm512_mask_reduce_min_epu32(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[8] = _mm512_mask_reduce_max_epu32(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(result[7] = _mm512_mask_reduce_min_epu32(mask, a))))
-		);
+	__mmask16 c_mask = 0;
+	__mmask16 min_mask = 0, max_mask = 0;
+	__mmask16 min_single_mask = 0, max_single_mask = 0;
+
+	min_single_mask = single_bit(0, mask, max_mask = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(result[15] = _mm512_mask_reduce_max_epu32(mask, a))));
+	max_single_mask = single_bit(1, mask, min_mask = _mm512_mask_cmpeq_epi32_mask(mask & ~max_mask, a, _mm512_set1_epi32(result[0] = _mm512_mask_reduce_min_epu32(mask & ~max_mask, a))));
+	mask &= ~(min_single_mask | max_single_mask);
+
+	min_single_mask = single_bit(0, mask, max_mask = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(result[14] = _mm512_mask_reduce_max_epu32(mask, a))));
+	max_single_mask = single_bit(1, mask, min_mask = _mm512_mask_cmpeq_epi32_mask(mask & ~max_mask, a, _mm512_set1_epi32(result[1] = _mm512_mask_reduce_min_epu32(mask & ~max_mask, a))));
+	mask &= ~(min_single_mask | max_single_mask);
+
+	min_single_mask = single_bit(0, mask, max_mask = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(result[13] = _mm512_mask_reduce_max_epu32(mask, a))));
+	max_single_mask = single_bit(1, mask, min_mask = _mm512_mask_cmpeq_epi32_mask(mask & ~max_mask, a, _mm512_set1_epi32(result[2] = _mm512_mask_reduce_min_epu32(mask & ~max_mask, a))));
+	mask &= ~(min_single_mask | max_single_mask);
+
+	min_single_mask = single_bit(0, mask, max_mask = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(result[12] = _mm512_mask_reduce_max_epu32(mask, a))));
+	max_single_mask = single_bit(1, mask, min_mask = _mm512_mask_cmpeq_epi32_mask(mask & ~max_mask, a, _mm512_set1_epi32(result[3] = _mm512_mask_reduce_min_epu32(mask & ~max_mask, a))));
+	mask &= ~(min_single_mask | max_single_mask);
+
+	min_single_mask = single_bit(0, mask, max_mask = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(result[11] = _mm512_mask_reduce_max_epu32(mask, a))));
+	max_single_mask = single_bit(1, mask, min_mask = _mm512_mask_cmpeq_epi32_mask(mask & ~max_mask, a, _mm512_set1_epi32(result[4] = _mm512_mask_reduce_min_epu32(mask & ~max_mask, a))));
+	mask &= ~(min_single_mask | max_single_mask);
+
+	min_single_mask = single_bit(0, mask, max_mask = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(result[10] = _mm512_mask_reduce_max_epu32(mask, a))));
+	max_single_mask = single_bit(1, mask, min_mask = _mm512_mask_cmpeq_epi32_mask(mask & ~max_mask, a, _mm512_set1_epi32(result[5] = _mm512_mask_reduce_min_epu32(mask & ~max_mask, a))));
+	mask &= ~(min_single_mask | max_single_mask);
+
+	min_single_mask = single_bit(0, mask, max_mask = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(result[9] = _mm512_mask_reduce_max_epu32(mask, a))));
+	max_single_mask = single_bit(1, mask, min_mask = _mm512_mask_cmpeq_epi32_mask(mask & ~max_mask, a, _mm512_set1_epi32(result[6] = _mm512_mask_reduce_min_epu32(mask & ~max_mask, a))));
+	mask &= ~(min_single_mask | max_single_mask);
+
+	min_single_mask = single_bit(0, mask, max_mask = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(result[8] = _mm512_mask_reduce_max_epu32(mask, a))));
+	max_single_mask = single_bit(1, mask, min_mask = _mm512_mask_cmpeq_epi32_mask(mask & ~max_mask, a, _mm512_set1_epi32(result[7] = _mm512_mask_reduce_min_epu32(mask & ~max_mask, a))));
+	mask &= ~(min_single_mask | max_single_mask);
+
+
 	return _mm512_loadu_epi32(result);
 }
 __forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _min, __mmask16& _mask_min) {
@@ -160,12 +157,80 @@ __forceinline bool sieve_get_min_max(__mmask16 mask, __m512i a, uint32_t& _min, 
 	if (mask != 0) {
 		_mask_max = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(
 			_max = _mm512_mask_reduce_max_epu32(mask, a)));
-		_mask_min = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(
-			_min = _mm512_mask_reduce_min_epu32(mask, a)));
+		_mask_min = _mm512_mask_cmpeq_epi32_mask(mask & (~_mask_max), a, _mm512_set1_epi32(
+			_min = _mm512_mask_reduce_min_epu32(mask & (~_mask_max), a)));
 		return true;
 	}
 	return false;
 }
+__forceinline bool sieve_get_min_max(__mmask8 mask, __m512i a, uint32_t& _min, uint32_t& _max, __mmask8& _mask_min, __mmask8& _mask_max) {
+	if (mask != 0) {
+		_mask_max = _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(
+			_max = _mm512_mask_reduce_max_epu64(mask, a)));
+		_mask_min = _mm512_mask_cmpeq_epi64_mask(mask & (~_mask_max), a, _mm512_set1_epi64(
+			_min = _mm512_mask_reduce_min_epu64(mask & (~_mask_max), a)));
+		return true;
+	}
+	return false;
+}
+
+__forceinline __m512i sieve_sort32x16_loop(__m512i a, uint32_t* result = nullptr) {
+
+	__m512i target = zero;
+	__mmask16 mask = 0xffff;
+	__mmask16 _min_mask = 0, _max_mask = 0;
+	uint32_t _min = 0, _max = 0;
+
+	int i = 0, j = 16;
+	while (sieve_get_min_max(mask, a, _min, _max, _min_mask, _max_mask)) {
+		int c_min = __popcnt16(_min_mask);
+		int c_max = __popcnt16(_max_mask);
+
+		target = _mm512_mask_blend_epi32((-(!!c_min)) & ((~((~0U) << c_min)) << i),
+			target, _mm512_set1_epi32(_min));
+
+		target = _mm512_mask_blend_epi32((-(!!c_max)) & ((~((~0U) << c_max)) << (j - c_max)),
+			target, _mm512_set1_epi32(_max));
+
+		i += c_min;
+		j -= c_max;
+
+		mask &= ~(_min_mask | _max_mask);
+	}
+	if (result != nullptr) {
+		_mm512_storeu_epi32(result, target);
+	}
+	return target;
+}
+__forceinline __m512i sieve_sort64x8_loop(__m512i a, uint64_t* result = nullptr) {
+
+	__m512i target = zero;
+	__mmask8 mask = 0xffff;
+	__mmask8 _min_mask = 0, _max_mask = 0;
+	uint32_t _min = 0, _max = 0;
+
+	int i = 0, j = 8;
+	while (sieve_get_min_max(mask, a, _min, _max, _min_mask, _max_mask)) {
+		int c_min = __popcnt16(_min_mask);
+		int c_max = __popcnt16(_max_mask);
+
+		target = _mm512_mask_blend_epi64((-(!!c_min)) & ((~((~0U) << c_min)) << i),
+			target, _mm512_set1_epi64(_min));
+
+		target = _mm512_mask_blend_epi64((-(!!c_max)) & ((~((~0U) << c_max)) << (j - c_max)),
+			target, _mm512_set1_epi64(_max));
+
+		i += c_min;
+		j -= c_max;
+
+		mask &= ~(_min_mask | _max_mask);
+	}
+	if (result != nullptr) {
+		_mm512_storeu_epi64(result, target);
+	}
+	return target;
+}
+
 __forceinline int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, __mmask16 masks[16], __m512i values[16]) {
 	if (_all_masks == 0) return 0;
 	int count = 0;
@@ -565,24 +630,25 @@ void sieve_sort_1G(uint32_t result[/*_1G*/], uint32_t a[/*_1G*/], int omp_depth 
 }
 
 __m512i sieve_sort64x8(__m512i a, uint64_t* result = nullptr) {
+	//TODO:
 	uint64_t buffer[8] = { 0 };
 	if (result == nullptr) _mm512_store_epi64(result = buffer, a);
 	__mmask8 mask = ~0;
 	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[7] = _mm512_mask_reduce_max_epu64(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[0] = _mm512_mask_reduce_min_epu64(mask, a))))
+		single_bit(0, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[7] = _mm512_mask_reduce_max_epu64(mask, a))))
+		| single_bit(1, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[0] = _mm512_mask_reduce_min_epu64(mask, a))))
 		);
 	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[6] = _mm512_mask_reduce_max_epu64(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[1] = _mm512_mask_reduce_min_epu64(mask, a))))
+		single_bit(0, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[6] = _mm512_mask_reduce_max_epu64(mask, a))))
+		| single_bit(1, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[1] = _mm512_mask_reduce_min_epu64(mask, a))))
 		);
 	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[5] = _mm512_mask_reduce_max_epu64(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[2] = _mm512_mask_reduce_min_epu64(mask, a))))
+		single_bit(0, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[5] = _mm512_mask_reduce_max_epu64(mask, a))))
+		| single_bit(1, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[2] = _mm512_mask_reduce_min_epu64(mask, a))))
 		);
 	mask &= ~(
-		single_bit(0, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[4] = _mm512_mask_reduce_max_epu64(mask, a))))
-		| single_bit(1, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[3] = _mm512_mask_reduce_min_epu64(mask, a))))
+		single_bit(0, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[4] = _mm512_mask_reduce_max_epu64(mask, a))))
+		| single_bit(1, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[3] = _mm512_mask_reduce_min_epu64(mask, a))))
 		);
 	return _mm512_loadu_epi64(result);
 }
@@ -628,9 +694,10 @@ void tests() {
 	uint64_t compare64x8[8] = { 0 };
 	for (int c = 0; c < max_retries; c++) {
 		for (int i = 0; i < 8; i++) {
-			compare64x8[i] = result64x8[i] = generate_random_64();
+			compare64x8[i] = result64x8[i] = generate_random_64(16);
 		}
-		sieve_sort64x8(_mm512_loadu_epi64(result64x8), result64x8);
+		sieve_sort64x8_loop(_mm512_loadu_epi64(result64x8), result64x8);
+
 		std::sort(compare64x8, compare64x8 + 8);
 		bool ex = std::equal(compare64x8, result64x8 + 16, compare64x8);
 		if (!ex)
@@ -638,13 +705,21 @@ void tests() {
 			std::cout << "failed" << std::endl;
 		}
 	}
+	std::cout << "64 pass" << std::endl;
+
+	uint32_t original32x16[16] = { 0 };
 	uint32_t result32x16[16] = { 0 };
 	uint32_t compare32x16[16] = { 0 };
 	for (int c = 0; c < max_retries; c++) {
 		for (int i = 0; i < 16; i++) {
-			compare32x16[i] = result32x16[i] = generate_random_32();
+			original32x16[i] = compare32x16[i] = result32x16[i] = generate_random_32(32);
 		}
-		sieve_sort32x16(_mm512_loadu_epi32(result32x16), result32x16);
+		__m512i t = sieve_sort32x16(_mm512_loadu_epi32(result32x16));
+		__m512i r = sieve_sort32x16_loop(_mm512_loadu_epi32(result32x16));
+		if (_mm512_cmpeq_epi32_mask(t, r) != 0xffff) {
+			//std::cout << "bad" << std::endl;
+		}
+		_mm512_storeu_epi32(result32x16, r);
 		std::sort(compare32x16, compare32x16 + 16);
 		bool ex = std::equal(result32x16, result32x16 + 16, compare32x16);
 		if (!ex)
@@ -657,12 +732,16 @@ void tests() {
 			}
 		}
 	}
+	std::cout << "32 pass" << std::endl;
+	std::cout << "all pass" << std::endl;
 }
 
 
 
 int main(int argc, char* argv[])
 {
+	tests();
+
 #if 0
 	const int _length = 256;
 	for (int s = 0; s < 10000; s++) {
