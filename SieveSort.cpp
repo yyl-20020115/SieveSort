@@ -7,9 +7,6 @@
 const __m256i _zero = _mm256_setzero_si256();
 const __m512i zero = _mm512_setzero_si512();
 const __m512i ones = _mm512_set1_epi32(1);
-const __m512i mones = _mm512_set1_epi32(~0);
-const __m512i hexes = _mm512_set1_epi32(16);
-const __m512i sequence = _mm512_setr_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
 
 __forceinline void transpose(uint32_t* a, size_t n, size_t m) {
 	for (size_t i = 0; i < n; i++) {
@@ -126,6 +123,12 @@ __forceinline __m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
 
 	return _mm512_loadu_epi32(result);
 }
+__forceinline __m512i sieve_sort64x8(__m512i a, uint64_t* result = nullptr) {
+	//TODO:
+	uint64_t buffer[8] = { 0 };
+	return _mm512_loadu_epi64(result);
+}
+
 __forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _min, __mmask16& _mask_min) {
 	if (mask != 0) {
 		_mask_min = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(
@@ -163,7 +166,7 @@ __forceinline bool sieve_get_min_max(__mmask16 mask, __m512i a, uint32_t& _min, 
 	}
 	return false;
 }
-__forceinline bool sieve_get_min_max(__mmask8 mask, __m512i a, uint32_t& _min, uint32_t& _max, __mmask8& _mask_min, __mmask8& _mask_max) {
+__forceinline bool sieve_get_min_max(__mmask8 mask, __m512i a, uint64_t& _min, uint64_t& _max, __mmask8& _mask_min, __mmask8& _mask_max) {
 	if (mask != 0) {
 		_mask_max = _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(
 			_max = _mm512_mask_reduce_max_epu64(mask, a)));
@@ -179,12 +182,12 @@ __forceinline __m512i sieve_sort32x16_loop(__m512i a, uint32_t* result = nullptr
 	__m512i target = zero;
 	__mmask16 mask = 0xffff;
 	__mmask16 _min_mask = 0, _max_mask = 0;
+	uint32_t i = 0, j = 16;
 	uint32_t _min = 0, _max = 0;
-
-	int i = 0, j = 16;
+	uint32_t c_min = 0, c_max = 0;
 	while (sieve_get_min_max(mask, a, _min, _max, _min_mask, _max_mask)) {
-		int c_min = __popcnt16(_min_mask);
-		int c_max = __popcnt16(_max_mask);
+		c_min = __popcnt16(_min_mask);
+		c_max = __popcnt16(_max_mask);
 
 		target = _mm512_mask_blend_epi32((-(!!c_min)) & ((~((~0U) << c_min)) << i),
 			target, _mm512_set1_epi32(_min));
@@ -207,12 +210,12 @@ __forceinline __m512i sieve_sort64x8_loop(__m512i a, uint64_t* result = nullptr)
 	__m512i target = zero;
 	__mmask8 mask = 0xffff;
 	__mmask8 _min_mask = 0, _max_mask = 0;
-	uint32_t _min = 0, _max = 0;
-
-	int i = 0, j = 8;
+	uint32_t i = 0, j = 8;
+	uint64_t _min = 0, _max = 0;
+	uint32_t c_min = 0, c_max = 0;
 	while (sieve_get_min_max(mask, a, _min, _max, _min_mask, _max_mask)) {
-		int c_min = __popcnt16(_min_mask);
-		int c_max = __popcnt16(_max_mask);
+		c_min = __popcnt16(_min_mask);
+		c_max = __popcnt16(_max_mask);
 
 		target = _mm512_mask_blend_epi64((-(!!c_min)) & ((~((~0U) << c_min)) << i),
 			target, _mm512_set1_epi64(_min));
@@ -629,29 +632,6 @@ void sieve_sort_1G(uint32_t result[/*_1G*/], uint32_t a[/*_1G*/], int omp_depth 
 	delete[] lines;
 }
 
-__m512i sieve_sort64x8(__m512i a, uint64_t* result = nullptr) {
-	//TODO:
-	uint64_t buffer[8] = { 0 };
-	if (result == nullptr) _mm512_store_epi64(result = buffer, a);
-	__mmask8 mask = ~0;
-	mask &= ~(
-		single_bit(0, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[7] = _mm512_mask_reduce_max_epu64(mask, a))))
-		| single_bit(1, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[0] = _mm512_mask_reduce_min_epu64(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[6] = _mm512_mask_reduce_max_epu64(mask, a))))
-		| single_bit(1, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[1] = _mm512_mask_reduce_min_epu64(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[5] = _mm512_mask_reduce_max_epu64(mask, a))))
-		| single_bit(1, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[2] = _mm512_mask_reduce_min_epu64(mask, a))))
-		);
-	mask &= ~(
-		single_bit(0, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[4] = _mm512_mask_reduce_max_epu64(mask, a))))
-		| single_bit(1, mask, _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(result[3] = _mm512_mask_reduce_min_epu64(mask, a))))
-		);
-	return _mm512_loadu_epi64(result);
-}
 
 __forceinline uint32_t generate_random_32() {
 	int r;
@@ -694,7 +674,7 @@ void tests() {
 	uint64_t compare64x8[8] = { 0 };
 	for (int c = 0; c < max_retries; c++) {
 		for (int i = 0; i < 8; i++) {
-			compare64x8[i] = result64x8[i] = generate_random_64(16);
+			compare64x8[i] = result64x8[i] = generate_random_64();
 		}
 		sieve_sort64x8_loop(_mm512_loadu_epi64(result64x8), result64x8);
 
