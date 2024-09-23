@@ -125,51 +125,52 @@ __m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
 		);
 	return _mm512_loadu_epi32(result);
 }
-__forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t* p_min, __mmask16* p_mask_min) {
+
+__forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _min, __mmask16& _mask_min) {
 	if (mask != 0) {
-		*p_min = _mm512_mask_reduce_min_epu32(mask, a);
-		*p_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(*p_min));
+		_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
+			_min = _mm512_mask_reduce_min_epu32(mask, a)));
 		return true;
 	}
 	return false;
 }
 
-__forceinline bool sieve_get_max(__mmask16 mask, __m512i a, uint32_t* p_max, __mmask16* p_mask_max) {
+__forceinline bool sieve_get_max(__mmask16 mask, __m512i a, uint32_t& _max, __mmask16& _mask_max) {
 	if (mask != 0) {
-		*p_max = _mm512_mask_reduce_max_epu32(mask, a);
-		*p_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(*p_max));
+		_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
+			_max = _mm512_mask_reduce_max_epu32(mask, a)));
 		return true;
 	}
 	return false;
 }
-__forceinline bool sieve_get_max_min(__mmask16 mask, __m512i a, uint32_t* p_max, uint32_t* p_min, __mmask16* p_mask_max, __mmask16* p_mask_min) {
+__forceinline bool sieve_get_min_max(__mmask16 mask, __m512i a, uint32_t& _min, uint32_t& _max, __mmask16& _mask_min, __mmask16& _mask_max) {
 	if (mask != 0) {
-		*p_max = _mm512_mask_reduce_max_epu32(mask, a);
-		*p_min = _mm512_mask_reduce_min_epu32(mask, a);
-		*p_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(*p_max));
-		*p_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(*p_min));
+		_max = _mm512_mask_reduce_max_epu32(mask, a);
+		_min = _mm512_mask_reduce_min_epu32(mask, a);
+		_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(_max));
+		_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(_min));
 		return true;
 	}
 	return false;
 }
 
-int seive_get_min(uint32_t* p_min, __mmask16* p_all_masks, __mmask16 masks[16], __m512i values[16]) {
-	if (p_all_masks == 0 || *p_all_masks==0) return 0;
+int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, __mmask16 masks[16], __m512i values[16]) {
+	if (_all_masks == 0) return 0;
 	int count = 0;
 	uint32_t  _mines[16] = { 0 };
 	__mmask16 mask_mines[16] = { 0 };
 	for (size_t i = 0; i < 16; i++) {
-		if ((*p_all_masks & (1 << i)) != 0) {
+		if ((_all_masks & (1 << i)) != 0) {
 			if (sieve_get_min(masks[i],
 				values[i],
-				_mines + i, mask_mines + i))
+				_mines[i], mask_mines[i]))
 			{
 				//OK
 			}
 		}
 	}
 	__mmask16 found_mask = 0;
-	if (sieve_get_min(*p_all_masks, _mm512_loadu_epi32(_mines), p_min, &found_mask)){
+	if (sieve_get_min(_all_masks, _mm512_loadu_epi32(_mines), p_min, found_mask)) {
 		//update masks
 		while (found_mask != 0) {
 			int idx = get_lsb_index(found_mask);
@@ -177,31 +178,116 @@ int seive_get_min(uint32_t* p_min, __mmask16* p_all_masks, __mmask16 masks[16], 
 			masks[idx] &= ~mask_mines[idx];
 			found_mask &= ~(1 << idx);
 		}
-		*p_all_masks &= ~_mm256_cmpeq_epu16_mask(
+		_all_masks &= ~_mm256_cmpeq_epu16_mask(
 			_mm256_loadu_epi16(masks), _zero);
 	}
-	
+
 	return count;
 }
+
 //[16u32]x16
 void sieve_sort_256(uint32_t a[256]) {
 	__m512i values[16];
 	for (size_t i = 0; i < 16; i++) {
-		values[i] = _mm512_loadu_epi32(a + (i<<4));
+		values[i] = _mm512_loadu_epi32(a + (i << 4));
 	}
 	__mmask16 masks[16];
 	memset(masks, 0xff, sizeof(masks));
 	__mmask16 all_masks = 0xffff;
 	int p = 0;
-	while(p<256) {
+	while (p < 256) {
 		uint32_t _min = 0;
-		int count = seive_get_min(&_min, &all_masks, masks, values);
+		int count = seive_get_min(_min, all_masks, masks, values);
 		if (count == 0)break;
-		for (int i = 0; i < count;i++) {
+		for (int i = 0; i < count; i++) {
 			a[p++] = _min;
 		}
 	}
 }
+
+void seive_get_min_max(
+	int use_mask,
+	uint32_t& p_min, 
+	uint32_t& p_max,
+	uint32_t& _min_count,
+	uint32_t& _max_count,
+	__mmask16& _all_masks, 
+	__mmask16 masks[16],
+	__m512i values[16]) {
+
+	_min_count = 0;
+	_max_count = 0;
+
+	int count = 0;
+	uint32_t  _mines[16] = { 0 };
+	__mmask16 mask_mines[16] = { 0 };
+	uint32_t  _maxes[16] = { 0 };
+	__mmask16 mask_maxes[16] = { 0 };
+	for (size_t i = 0; i < 16; i++) {
+		if ((_all_masks & (1 << i)) != 0) {
+			if (sieve_get_min_max(
+				masks[i],
+				values[i],
+				_mines[i], _maxes[i], mask_mines[i], mask_maxes[i]))
+			{
+				//OK
+			}
+		}
+	}
+	__mmask16 found_mask = 0;
+	if ((use_mask & 1)!=0 && sieve_get_min(_all_masks, _mm512_loadu_epi32(_mines), p_min, found_mask)) {
+		//update masks
+		while (found_mask != 0) {
+			int idx = get_lsb_index(found_mask);
+			_min_count += __popcnt16(mask_mines[idx]);
+			masks[idx] &= ~mask_mines[idx];
+			found_mask &= ~(1 << idx);
+		}
+		_all_masks &= ~_mm256_cmpeq_epu16_mask(
+			_mm256_loadu_epi16(masks), _zero);
+	}
+	if ((use_mask & 2) != 0 && sieve_get_max(_all_masks, _mm512_loadu_epi32(_maxes), p_max, found_mask)) {
+		//update masks
+		while (found_mask != 0) {
+			int idx = get_lsb_index(found_mask);
+			_max_count += __popcnt16(mask_maxes[idx]);
+			masks[idx] &= ~mask_maxes[idx];
+			found_mask &= ~(1 << idx);
+		}
+		_all_masks &= ~_mm256_cmpeq_epu16_mask(
+			_mm256_loadu_epi16(masks), _zero);
+	}
+}
+
+//[16u32]x16
+void sieve_sort_256_dual(uint32_t a[256]) {
+	__m512i values[16];
+	for (size_t i = 0; i < 16; i++) {
+		values[i] = _mm512_loadu_epi32(a + (i << 4));
+	}
+	__mmask16 masks[16];
+	memset(masks, 0xff, sizeof(masks));
+
+	__mmask16 all_masks = 0xffff;
+	uint32_t _min = 0, _max = 0;
+	uint32_t _min_count = 0, _max_count = 0;
+	int i = 0, j = 255;
+	while (i <= j) {
+		seive_get_min_max(
+			3,
+			_min, _max, 
+			_min_count, _max_count,
+			all_masks, masks, values);
+
+		for (int t = 0; t < _min_count; t++) {
+			a[i++] = _min;
+		}
+		for (int t = 0; t < _max_count; t++) {
+			a[j--] = _max;
+		}
+	}
+}
+
 
 
 __m512i sieve_sort64x8(__m512i a, uint64_t* result = nullptr) {
@@ -424,7 +510,7 @@ int main(int argc, char* argv[])
 	}
 	//print1d(a, _length);
 
-	sieve_sort_256(a);
+	sieve_sort_256_dual(a);
 	print1d(a, _length);
 
 	std::sort(c, c + _length);
@@ -485,23 +571,9 @@ int main(int argc, char* argv[])
 	auto start = std::chrono::high_resolution_clock::now();
 
 	for (int c = 0; c < max_repeats; c++) {
-		uint32_t result[count], compare[count];
+		uint32_t result[count];
 		memcpy(result, values[c], sizeof(result));
-		memcpy(compare, values[c], sizeof(compare));
 		sieve_sort_256(result);
-		std::sort(compare, compare + count);
-		bool beq = std::equal(result, result + count, compare);
-		if (!beq) {
-			int bad = 0;
-			std::cout << "failed c=" << c << std::endl;
-			for (int j = 0; j < count; j++) {
-				if (result[j] != compare[j]) {
-					std::cout << "found failed:" << j << std::endl;
-					bad++;
-				}
-			}
-			std::cout << "bad=" << bad << std::endl;
-		}
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
@@ -511,7 +583,9 @@ int main(int argc, char* argv[])
 
 	start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
-		std::sort(values[c], values[c] + count);
+		uint32_t result[count];
+		memcpy(result, values[c], sizeof(result));
+		std::sort(result, result + count);
 	}
 
 	end = std::chrono::high_resolution_clock::now();
