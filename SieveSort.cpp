@@ -131,7 +131,7 @@ __forceinline __m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
 }
 __forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _min, __mmask16& _mask_min) {
 	if (mask != 0) {
-		_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
+		_mask_min = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(
 			_min = _mm512_mask_reduce_min_epu32(mask, a)));
 		return true;
 	}
@@ -158,9 +158,9 @@ __forceinline bool sieve_get_max(__mmask16 mask, __m512i a, uint32_t& _max, __mm
 }
 __forceinline bool sieve_get_min_max(__mmask16 mask, __m512i a, uint32_t& _min, uint32_t& _max, __mmask16& _mask_min, __mmask16& _mask_max) {
 	if (mask != 0) {
-		_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
+		_mask_max = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(
 			_max = _mm512_mask_reduce_max_epu32(mask, a)));
-		_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
+		_mask_min = _mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(
 			_min = _mm512_mask_reduce_min_epu32(mask, a)));
 		return true;
 	}
@@ -270,7 +270,7 @@ __forceinline void seive_get_min_max(
 
 const size_t _256 = 1 << 8;
 //[16u32]x16
-void sieve_sort_256_dual(uint32_t a[256], uint32_t *result = nullptr) {
+void sieve_sort_256_dual(uint32_t a[256], uint32_t* result = nullptr) {
 	__m512i values[16];
 	for (size_t i = 0; i < 16; i++) {
 		values[i] = _mm512_loadu_epi32(a + (i << 4));
@@ -491,7 +491,7 @@ void sieve_sort_256M(uint32_t result[_256M], uint32_t a[_256M], int omp_depth = 
 #pragma omp parallel for
 		for (int i = 0; i < 16; i++) {
 			uint32_t* pa = a + ((size_t)i << 24);
-			sieve_sort_16M(lines[i], pa, omp_depth-1);
+			sieve_sort_16M(lines[i], pa, omp_depth - 1);
 		}
 	}
 	else {
@@ -533,7 +533,7 @@ void sieve_sort_1G(uint32_t result[/*_1G*/], uint32_t a[/*_1G*/], int omp_depth 
 #pragma omp parallel for
 		for (int i = 0; i < 16; i++) {
 			uint32_t* pa = a + ((size_t)i << 28);
-			sieve_sort_256M(lines[i], pa, omp_depth-1);
+			sieve_sort_256M(lines[i], pa, omp_depth - 1);
 		}
 	}
 	else {
@@ -754,7 +754,7 @@ int main(int argc, char* argv[])
 	return 0;
 #endif
 	const int count = _16M;
-	const int max_repeats = 1;
+	const int max_repeats = 10;
 	uint32_t** values = new uint32_t * [max_repeats];
 	uint32_t** results = new uint32_t * [max_repeats];
 #pragma omp parallel for
@@ -808,5 +808,5 @@ int main(int argc, char* argv[])
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 
 	return 0;
-	}
+}
 
