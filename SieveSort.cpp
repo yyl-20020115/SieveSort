@@ -4,7 +4,12 @@
 #include <iomanip>
 #include <chrono>
 
-const __m256i _zero = _mm256_set1_epi16(0);
+const __m256i _zero = _mm256_setzero_si256();
+const __m512i zero = _mm512_setzero_si512();
+const __m512i ones = _mm512_set1_epi32(1);
+const __m512i mones = _mm512_set1_epi32(~0);
+const __m512i hexes = _mm512_set1_epi32(16);
+const __m512i sequence = _mm512_setr_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
 
 __forceinline void transpose(uint32_t* a, size_t n, size_t m) {
 	for (size_t i = 0; i < n; i++) {
@@ -86,8 +91,7 @@ __forceinline __mmask8 single_bit(int leading_or_trailing, __mmask8 old_mask, __
 
 	return mask;
 }
-
-__m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
+__forceinline __m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
 	uint32_t buffer[16] = { 0 };
 	if (result == nullptr) _mm512_store_epi32(result = buffer, a);
 	__mmask16 mask = 0xffff;
@@ -125,7 +129,6 @@ __m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
 		);
 	return _mm512_loadu_epi32(result);
 }
-
 __forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _min, __mmask16& _mask_min) {
 	if (mask != 0) {
 		_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
@@ -134,7 +137,17 @@ __forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _min, __mm
 	}
 	return false;
 }
-
+__forceinline int sieve_get_min_index(__mmask16 mask, uint32_t& _min, __m512i a) {
+	return get_lsb_index(
+		_mm512_mask_cmpeq_epi32_mask(mask, a, _mm512_set1_epi32(
+			_min = _mm512_mask_reduce_min_epu32(mask, a))));
+}
+__forceinline int sieve_get_min_index(__mmask16 mask, uint32_t& _min, uint32_t a[16]) {
+	return sieve_get_min_index(mask, _min, _mm512_loadu_epi32(a));
+}
+__forceinline bool sieve_get_min(__mmask16 mask, uint32_t a[16], uint32_t& _min, __mmask16& _mask_min) {
+	return sieve_get_min(mask, _mm512_loadu_epi32(a), _min, _mask_min);
+}
 __forceinline bool sieve_get_max(__mmask16 mask, __m512i a, uint32_t& _max, __mmask16& _mask_max) {
 	if (mask != 0) {
 		_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
@@ -153,8 +166,7 @@ __forceinline bool sieve_get_min_max(__mmask16 mask, __m512i a, uint32_t& _min, 
 	}
 	return false;
 }
-
-int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, __mmask16 masks[16], __m512i values[16]) {
+__forceinline int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, __mmask16 masks[16], __m512i values[16]) {
 	if (_all_masks == 0) return 0;
 	int count = 0;
 	uint32_t  _mines[16] = { 0 };
@@ -177,43 +189,33 @@ int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, __mmask16 masks[16], _
 		__m512i _mask_mines = _mm512_cvtepu16_epi32(__mask_mines);
 		__m512i _masks = _mm512_cvtepu16_epi32(_mm256_loadu_epi16(masks));
 		_masks = _mm512_mask_andnot_epi32(_masks, found_mask, _mask_mines, _masks);
+		_all_masks &= ~_mm512_cmpeq_epu32_mask(
+			_masks, zero);
 		_mm256_storeu_epi16(masks, _mm512_cvtepi32_epi16(_masks));
-
-		////update masks
-		//while (found_mask != 0) {
-		//	int idx = get_lsb_index(found_mask);
-		//	count += __popcnt16(mask_mines[idx]);
-		//	masks[idx] &= ~mask_mines[idx];
-		//	found_mask &= ~(1 << idx);
-		//}
-		_all_masks &= ~_mm256_cmpeq_epu16_mask(
-			_mm256_loadu_epi16(masks), _zero);
 	}
 
 	return count;
 }
-
-//[16u32]x16
-void sieve_sort_256(uint32_t a[256]) {
-	__m512i values[16];
+__forceinline int seive_get_min_index(uint32_t& p_min, uint32_t values[256]) {
+	int index = -1;
+	uint32_t  _mines[16] = { 0 };
+	__mmask16 mask_mines[16] = { 0 };
 	for (size_t i = 0; i < 16; i++) {
-		values[i] = _mm512_loadu_epi32(a + (i << 4));
-	}
-	__mmask16 masks[16];
-	memset(masks, 0xff, sizeof(masks));
-	__mmask16 all_masks = 0xffff;
-	int p = 0;
-	while (p < 256) {
-		uint32_t _min = 0;
-		int count = seive_get_min(_min, all_masks, masks, values);
-		if (count == 0)break;
-		for (int i = 0; i < count; i++) {
-			a[p++] = _min;
+		if (sieve_get_min(0xffff,
+			values + (i << 4),
+			_mines[i], mask_mines[i]))
+		{
+			//OK
 		}
 	}
+	__mmask16 found_mask = 0;
+	if (sieve_get_min(0xffff, _mm512_loadu_epi32(_mines), p_min, found_mask)) {
+		int p = get_lsb_index(found_mask);
+		index = (p << 4) + get_lsb_index(mask_mines[p]);
+	}
+	return index;
 }
-
-void seive_get_min_max(
+__forceinline void seive_get_min_max(
 	int use_mask,
 	uint32_t& p_min,
 	uint32_t& p_max,
@@ -225,13 +227,12 @@ void seive_get_min_max(
 
 	_min_count = 0;
 	_max_count = 0;
-
-	int count = 0;
+	if (_all_masks == 0) return;
 	uint32_t  _mines[16] = { 0 };
 	__mmask16 mask_mines[16] = { 0 };
 	uint32_t  _maxes[16] = { 0 };
 	__mmask16 mask_maxes[16] = { 0 };
-	for (size_t i = 0; i < 16; i++) {
+	for (int i = 0; i < 16; i++) {
 		if ((_all_masks & (1 << i)) != 0) {
 			if (sieve_get_min_max(
 				masks[i],
@@ -244,37 +245,40 @@ void seive_get_min_max(
 	}
 	__mmask16 found_mask = 0;
 	if ((use_mask & 1) != 0 && sieve_get_min(_all_masks, _mm512_loadu_epi32(_mines), p_min, found_mask)) {
-		//update masks
-		while (found_mask != 0) {
-			int idx = get_lsb_index(found_mask);
-			_min_count += __popcnt16(mask_mines[idx]);
-			masks[idx] &= ~mask_mines[idx];
-			found_mask &= ~(1 << idx);
-		}
-		_all_masks &= ~_mm256_cmpeq_epu16_mask(
-			_mm256_loadu_epi16(masks), _zero);
+		__m256i __mask_mines = _mm256_loadu_epi16(mask_mines);
+		_min_count = _mm512_reduce_add_epu16(_mm512_castsi256_si512(
+			_mm256_maskz_popcnt_epi16(found_mask, __mask_mines)));
+		__m512i _mask_mines = _mm512_cvtepu16_epi32(__mask_mines);
+		__m512i _masks = _mm512_cvtepu16_epi32(_mm256_loadu_epi16(masks));
+		_masks = _mm512_mask_andnot_epi32(_masks, found_mask, _mask_mines, _masks);
+		_all_masks &= ~_mm512_cmpeq_epu32_mask(
+			_masks, zero);
+		_mm256_storeu_epi16(masks, _mm512_cvtepi32_epi16(_masks));
 	}
 	if ((use_mask & 2) != 0 && sieve_get_max(_all_masks, _mm512_loadu_epi32(_maxes), p_max, found_mask)) {
-		//update masks
-		while (found_mask != 0) {
-			int idx = get_lsb_index(found_mask);
-			_max_count += __popcnt16(mask_maxes[idx]);
-			masks[idx] &= ~mask_maxes[idx];
-			found_mask &= ~(1 << idx);
-		}
-		_all_masks &= ~_mm256_cmpeq_epu16_mask(
-			_mm256_loadu_epi16(masks), _zero);
+		__m256i __mask_maxes = _mm256_loadu_epi16(mask_maxes);
+		_max_count = _mm512_reduce_add_epu16(_mm512_castsi256_si512(
+			_mm256_maskz_popcnt_epi16(found_mask, __mask_maxes)));
+		__m512i _mask_maxes = _mm512_cvtepu16_epi32(__mask_maxes);
+		__m512i _masks = _mm512_cvtepu16_epi32(_mm256_loadu_epi16(masks));
+		_masks = _mm512_mask_andnot_epi32(_masks, found_mask, _mask_maxes, _masks);
+		_all_masks &= ~_mm512_cmpeq_epu32_mask(
+			_masks, zero);
+		_mm256_storeu_epi16(masks, _mm512_cvtepi32_epi16(_masks));
 	}
 }
 
+const size_t _256 = 1 << 8;
 //[16u32]x16
-void sieve_sort_256_dual(uint32_t a[256]) {
+void sieve_sort_256_dual(uint32_t a[256], uint32_t *result = nullptr) {
 	__m512i values[16];
 	for (size_t i = 0; i < 16; i++) {
 		values[i] = _mm512_loadu_epi32(a + (i << 4));
 	}
 	__mmask16 masks[16];
 	memset(masks, 0xff, sizeof(masks));
+
+	result = result == nullptr ? a : result;
 
 	__mmask16 all_masks = 0xffff;
 	uint32_t _min = 0, _max = 0;
@@ -287,16 +291,278 @@ void sieve_sort_256_dual(uint32_t a[256]) {
 			_min_count, _max_count,
 			all_masks, masks, values);
 
-		for (int t = 0; t < _min_count; t++) {
-			a[i++] = _min;
+		for (size_t t = 0; t < _min_count; t++) {
+			result[i++] = _min;
 		}
-		for (int t = 0; t < _max_count; t++) {
-			a[j--] = _max;
+		for (size_t t = 0; t < _max_count; t++) {
+			result[j--] = _max;
 		}
 	}
 }
 
+void sieve_sort_256(uint32_t a[_256], uint32_t* result = nullptr) {
+	__m512i values[16];
+	for (size_t i = 0; i < 16; i++) {
+		values[i] = _mm512_loadu_epi32(a + (i << 4));
+	}
+	__mmask16 masks[16];
+	memset(masks, 0xff, sizeof(masks));
+	__mmask16 all_masks = 0xffff;
+	result = result == nullptr ? a : result;
 
+	int p = 0;
+	while (p < _256) {
+		uint32_t _min = 0;
+		int count = seive_get_min(_min, all_masks, masks, values);
+		if (count == 0) break;
+		for (int i = 0; i < count; i++) {
+			result[p++] = _min;
+		}
+	}
+}
+
+const size_t _4K = _256 << 4;
+void sieve_sort_4K(uint32_t result[_4K], uint32_t a[_4K], int omp_depth = 1) {
+	__m512i idx = zero;
+	for (int i = 0; i < 16; i++) {
+		idx.m512i_u32[i] = i << 8;
+	}
+	if (omp_depth > 0) {
+#pragma omp parallel for
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 8);
+			sieve_sort_256_dual(pa);
+		}
+	}
+	else {
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 8);
+			sieve_sort_256_dual(pa);
+		}
+	}
+
+	__mmask16 mask = 0x0ffff;
+
+	for (int i = 0; i < _4K; i++) {
+		__m512i values = _mm512_mask_i32gather_epi32(zero, mask, idx, a, sizeof(uint32_t));
+		int p = sieve_get_min_index(mask, result[i], values);
+		idx.m512i_u32[p]++;
+		if ((idx.m512i_u32[p] & 0xff) == 0) {
+			mask &= ~(1 << p);
+		}
+	}
+}
+const size_t _64K = _4K << 4;
+void sieve_sort_64K(uint32_t result[_64K], uint32_t a[_64K], int omp_depth = 2) {
+	uint32_t idx[16] = { 0 };
+	uint32_t** lines = new uint32_t * [16];
+	for (int i = 0; i < 16; i++) {
+		lines[i] = new uint32_t[_4K];
+	}
+	if (omp_depth > 0) {
+#pragma omp parallel for
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 12);
+			sieve_sort_4K(lines[i], pa, omp_depth - 1);
+		}
+	}
+	else {
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 12);
+			sieve_sort_4K(lines[i], pa, 0);
+		}
+	}
+
+	__mmask16 mask = 0x0ffff;
+
+	__m512i values = zero;
+	for (int i = 0; i < _64K; i++) {
+		for (int j = 0; j < 16; j++) {
+			if ((mask & (1 << j)) != 0) {
+				values.m512i_u32[j] = lines[j][idx[j]];
+			}
+		}
+		int p = sieve_get_min_index(mask, result[i], values);
+		idx[p]++;
+		if (idx[p] == _4K) {
+			mask &= ~(1 << p);
+		}
+	}
+	for (int i = 0; i < 16; i++) {
+		delete[] lines[i];
+	}
+	delete[] lines;
+}
+
+
+const size_t _1M = _64K << 4;
+void sieve_sort_1M(uint32_t result[_1M], uint32_t a[_1M], int omp_depth = 3) {
+	uint32_t idx[16] = { 0 };
+	uint32_t** lines = new uint32_t * [16];
+	for (int i = 0; i < 16; i++) {
+		lines[i] = new uint32_t[_64K];
+	}
+	if (omp_depth > 0) {
+#pragma omp parallel for
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 16);
+			sieve_sort_64K(lines[i], pa, omp_depth - 1);
+		}
+	}
+	else {
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 16);
+			sieve_sort_64K(lines[i], pa, 0);
+		}
+	}
+
+	__mmask16 mask = 0x0ffff;
+
+	uint32_t _min = 0;
+	__m512i values = zero;
+	for (int i = 0; i < _1M; i++) {
+		for (int j = 0; j < 16; j++) {
+			if ((mask & (1 << j)) != 0) {
+				values.m512i_u32[j] = lines[j][idx[j]];
+			}
+		}
+		int p = sieve_get_min_index(mask, result[i], values);
+		idx[p]++;
+		if (idx[p] == _64K) {
+			mask &= ~(1 << p);
+		}
+	}
+	for (int i = 0; i < 16; i++) {
+		delete[] lines[i];
+	}
+	delete[] lines;
+}
+const size_t _16M = _1M << 4;
+void sieve_sort_16M(uint32_t result[_16M], uint32_t a[_16M], int omp_depth = 4) {
+	uint32_t idx[16] = { 0 };
+	uint32_t** lines = new uint32_t * [16];
+	for (int i = 0; i < 16; i++) {
+		lines[i] = new uint32_t[_1M];
+	}
+	if (omp_depth > 0) {
+#pragma omp parallel for
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 20);
+			sieve_sort_1M(lines[i], pa, omp_depth - 1);
+		}
+	}
+	else
+	{
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 20);
+			sieve_sort_1M(lines[i], pa, 0);
+		}
+	}
+
+	__mmask16 mask = 0x0ffff;
+
+	__m512i values = zero;
+	for (int i = 0; i < _16M; i++) {
+		for (int j = 0; j < 16; j++) {
+			if ((mask & (1 << j)) != 0) {
+				values.m512i_u32[j] = lines[j][idx[j]];
+			}
+		}
+		int p = sieve_get_min_index(mask, result[i], values);
+		idx[p]++;
+		if (idx[p] == _1M) {
+			mask &= ~(1 << p);
+		}
+	}
+	for (int i = 0; i < 16; i++) {
+		delete[] lines[i];
+	}
+	delete[] lines;
+}
+
+const size_t _256M = _16M << 4;
+void sieve_sort_256M(uint32_t result[_256M], uint32_t a[_256M], int omp_depth = 5) {
+	uint32_t idx[16] = { 0 };
+	uint32_t** lines = new uint32_t * [16];
+	for (int i = 0; i < 16; i++) {
+		lines[i] = new uint32_t[_16M];
+	}
+	if (omp_depth > 0) {
+#pragma omp parallel for
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 24);
+			sieve_sort_16M(lines[i], pa, omp_depth-1);
+		}
+	}
+	else {
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 24);
+			sieve_sort_16M(lines[i], pa, 0);
+		}
+	}
+
+	__mmask16 mask = 0x0ffff;
+
+	__m512i values = zero;
+	for (int i = 0; i < _256M; i++) {
+		for (int j = 0; j < 16; j++) {
+			if ((mask & (1 << j)) != 0) {
+				values.m512i_u32[j] = lines[j][idx[j]];
+			}
+		}
+		int p = sieve_get_min_index(mask, result[i], values);
+		idx[p]++;
+		if (idx[p] == _16M) {
+			mask &= ~(1 << p);
+		}
+	}
+	for (int i = 0; i < 16; i++) {
+		delete[] lines[i];
+	}
+	delete[] lines;
+}
+
+const size_t _1G = _256M << 4;
+void sieve_sort_1G(uint32_t result[/*_1G*/], uint32_t a[/*_1G*/], int omp_depth = 6) {
+	uint32_t idx[16] = { 0 };
+	uint32_t** lines = new uint32_t * [16];
+	for (int i = 0; i < 16; i++) {
+		lines[i] = new uint32_t[_256M];
+	}
+	if (omp_depth > 0) {
+#pragma omp parallel for
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 28);
+			sieve_sort_256M(lines[i], pa, omp_depth-1);
+		}
+	}
+	else {
+		for (int i = 0; i < 16; i++) {
+			uint32_t* pa = a + ((size_t)i << 28);
+			sieve_sort_256M(lines[i], pa, 0);
+		}
+	}
+
+	__mmask16 mask = 0x0ffff;
+
+	__m512i values = zero;
+	for (int i = 0; i < _256M; i++) {
+		for (int j = 0; j < 16; j++) {
+			if ((mask & (1 << j)) != 0) {
+				values.m512i_u32[j] = lines[j][idx[j]];
+			}
+		}
+		int p = sieve_get_min_index(mask, result[i], values);
+		idx[p]++;
+		if (idx[p] == _256M) {
+			mask &= ~(1 << p);
+		}
+	}
+	for (int i = 0; i < 16; i++) {
+		delete[] lines[i];
+	}
+	delete[] lines;
+}
 
 __m512i sieve_sort64x8(__m512i a, uint64_t* result = nullptr) {
 	uint64_t buffer[8] = { 0 };
@@ -319,107 +585,6 @@ __m512i sieve_sort64x8(__m512i a, uint64_t* result = nullptr) {
 		| single_bit(1, mask, _mm512_cmpeq_epi64_mask(a, _mm512_set1_epi64(result[3] = _mm512_mask_reduce_min_epu64(mask, a))))
 		);
 	return _mm512_loadu_epi64(result);
-}
-
-const __m512i zero = _mm512_setzero_si512();
-const __m512i ones = _mm512_set1_epi32(1);
-const __m512i mones = _mm512_set1_epi32(~0);
-const __m512i hexes = _mm512_set1_epi32(16);
-const __m512i sequence = _mm512_setr_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
-
-__forceinline void sieve_sort_base16(uint32_t* a, size_t n, bool flip = false) {
-	if (flip) {
-		__m512i idx = sequence;
-		for (size_t i = 0; i < n; i++) {
-			__m512i values = _mm512_i32gather_epi32(idx, a, sizeof(uint32_t));
-			_mm512_i32scatter_epi32(a, idx,
-				sieve_sort32x16(values), sizeof(uint32_t));
-			idx = _mm512_add_epi32(idx, hexes);
-		}
-	}
-	else {
-		for (size_t i = 0; i < n; i++) {
-			sieve_sort32x16(_mm512_loadu_epi32(a + (i << 4)), a + (i << 4));
-		}
-	}
-}
-
-
-//sort the data from 2d to liner 
-
-__forceinline bool square_sort_base16(uint32_t* buffer, uint32_t* a, size_t count, size_t total) {
-	//a[256]:a[16][16]
-	const size_t stride = 16;
-	if (total > stride * count) return false;
-	size_t k = 0;
-	__m512i indices = zero, top_indices = zero;
-	for (size_t i = 0; i < stride; i++) {
-		indices.m512i_u32[i] = i;// (uint32_t)(i * count);
-		top_indices.m512i_u32[i] = i + stride * (count - 1);// (uint32_t)((i + 1) * count);
-	}
-	__mmask16 mask = 0xffff;
-	while (k < total) {
-		__m512i values = _mm512_mask_i32gather_epi32(mones, mask, indices, a, sizeof(uint32_t));
-		uint32_t _min = _mm512_mask_reduce_min_epu32(mask, values);
-		__mmask16 locations = _mm512_cmpeq_epu32_mask(values, _mm512_set1_epi32(_min));
-		indices = _mm512_mask_add_epi32(indices, locations, indices, hexes);
-		mask &= ~_mm512_mask_cmpeq_epu32_mask(mask, indices, top_indices);
-		//while (locations != 0) {
-		//	int idx = get_lsb_index(locations);
-		//	buffer[k++] = _min;
-		//	locations &= ~(1 << idx);
-		//}
-		unsigned short cbits = __popcnt16(locations);
-		for (uint16_t c = 0; c < cbits; c++) {
-			buffer[k++] = _min;
-		}
-	}
-	return true;
-}
-bool sieve_sort_base256(uint32_t* a, size_t n) {
-	const int _base = 256;
-	bool done = false;
-	if (n <= 1) return true;
-	else if (n > _base) return false;
-	else if (n == _base) {
-		uint32_t test[_base] = { 0 };
-		memcpy(test, a, sizeof(test));
-		sieve_sort_base16(a, n >> 4, false);
-		sieve_sort_base16(a, n >> 4, true);
-		uint32_t result[_base] = { 0 };
-		if (done = square_sort_base16(result, a, n >> 4, n)) {
-			memcpy(a, result, sizeof(result));
-		}
-	}
-	else //n<_base
-	{
-		size_t c = n >> 8;
-		size_t r = n & 0xffULL;
-		c = r != 0 ? c + 1 : c;
-
-		size_t m = c << 8;
-		uint32_t* _a = new uint32_t[m];
-		uint32_t* _r = new uint32_t[m];
-		memset(_r, 0, sizeof(uint32_t) * m);
-		memset(_a, 0, sizeof(uint32_t) * n);
-		memcpy(_a + (m - n), a, sizeof(uint32_t) * n);
-
-		sieve_sort_base16(_a, m >> 4, false);
-		done = square_sort_base16(_r, _a, m >> 4, m);
-		delete[] _a;
-		if (done) {
-			memcpy(a, _r + (m - n), sizeof(uint32_t) * n);
-		}
-		delete[] _r;
-	}
-	return done;
-}
-
-void compose_sort(uint32_t* result, uint32_t* a, size_t w, size_t h) {
-	for (size_t i = 0; i < h; i++) {
-		std::sort(a + i * w, a + (i + 1) * w);
-	}
-	square_sort_base16(result, a, w * h >> 4, w * h);
 }
 
 __forceinline uint32_t generate_random_32() {
@@ -498,8 +663,26 @@ void tests() {
 
 int main(int argc, char* argv[])
 {
-#if 1
+#if 0
 	const int _length = 256;
+	for (int s = 0; s < 10000; s++) {
+		uint32_t a[_length], b[_length], c[_length];
+		for (int t = 0; t < _length; t++) {
+			//uint32_t result32[count];
+			c[t] = b[t] = a[t] = generate_random_32(_length);
+		}
+		//print1d(a, _length);
+		std::sort(b, b + 256);
+		sieve_sort_256(a);
+		bool bd = std::equal(a, a + 256, b);
+		if (!bd) {
+			std::cout << "bad" << std::endl;
+			sieve_sort_256(c);
+		}
+	}
+#endif
+#if 0
+	const int _length = 65536;
 
 	uint32_t a[_length], b[_length], c[_length];
 	for (int t = 0; t < _length; t++) {
@@ -508,7 +691,26 @@ int main(int argc, char* argv[])
 	}
 	//print1d(a, _length);
 
-	sieve_sort_256(a);
+	sieve_sort_64K(a);
+	print1d(a, _length);
+
+	std::sort(c, c + _length);
+	print1d(c, _length);
+	std::cout << std::endl;
+#endif
+
+#if 0
+	const int _length = 4096;
+
+	uint32_t a[_length], b[_length], c[_length];
+	for (int t = 0; t < _length; t++) {
+		//uint32_t result32[count];
+		c[t] = b[t] = a[t] = generate_random_32(_length);
+	}
+	//print1d(a, _length);
+
+	//sieve_sort_256_dual(a);
+	sieve_sort_4K(a);
 	print1d(a, _length);
 
 	std::sort(c, c + _length);
@@ -551,13 +753,15 @@ int main(int argc, char* argv[])
 
 	return 0;
 #endif
-	const int count = 256;
-	const int max_repeats = 10000;
+	const int count = _16M;
+	const int max_repeats = 1;
 	uint32_t** values = new uint32_t * [max_repeats];
-
+	uint32_t** results = new uint32_t * [max_repeats];
+#pragma omp parallel for
 	for (int c = 0; c < max_repeats; c++) {
-		//uint32_t result32[count];
 		values[c] = new uint32_t[count];
+		results[c] = new uint32_t[count];
+		memset(results[c], 0, sizeof(uint32_t) * count);
 		for (int i = 0; i < count; i++) {
 			//result32[i] = (256 - i);
 			values[c][i] = generate_random_32(count);
@@ -565,42 +769,44 @@ int main(int argc, char* argv[])
 	}
 
 	//ok for 16x
-
 	auto start = std::chrono::high_resolution_clock::now();
-
 	for (int c = 0; c < max_repeats; c++) {
-		uint32_t result[count];
-		memcpy(result, values[c], sizeof(result));
-		sieve_sort_256(result);
+		sieve_sort_16M(results[c], values[c]);
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
-	std::chrono::duration<double> elapsed = end - start;
-	double d1 = ((double)max_repeats / elapsed.count()) / 1000.0;
+	std::chrono::duration<double> elapsed1 = end - start;
+	double d1 = ((double)max_repeats / elapsed1.count()) / 1000.0;
 	std::cout << "sieve sort speed:" << d1 << "K/s" << std::endl;
 
 	start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
-		uint32_t result[count];
-		memcpy(result, values[c], sizeof(result));
-		std::sort(result, result + count);
+		std::sort(values[c], values[c] + count);
 	}
 
 	end = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<double> elapsed2 = end - start;
 	double d2 = ((double)max_repeats / elapsed2.count() / (1000.0));
 	std::cout << "std sort speed:  " << d2 << "K/s" << std::endl;
-
+#pragma omp parallel for
 	for (int c = 0; c < max_repeats; c++) {
 		//uint32_t result32[count];
+		for (int d = 0; d < count; d++) {
+			if (results[c][d] != values[c][d]) {
+				std::cout << "found bad value at repeat " << c << " index " << d << std::endl;
+			}
+		}
+		delete[] results[c];
 		delete[] values[c];
 	}
 	delete[] values;
-
+	std::cout << "seive sort test: omp 16 threads" << std::endl;
+	std::cout << "samples:" << count << std::endl;
+	std::cout << "repeats:" << max_repeats << std::endl;
+	std::cout << "t1(seive):" << elapsed1.count() << " s" << std::endl;
+	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 
-	std::cout << "1/r:" << (d2 / d1) << std::endl;
-
 	return 0;
-}
+	}
 
