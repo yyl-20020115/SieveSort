@@ -3,6 +3,9 @@
 #include <algorithm>
 #include <iomanip>
 #include <chrono>
+
+const __m256i _zero = _mm256_set1_epi16(0);
+
 __forceinline void transpose(uint32_t* a, size_t n, size_t m) {
 	for (size_t i = 0; i < n; i++) {
 		for (size_t j = i; j < n; j++) {
@@ -84,15 +87,6 @@ __forceinline __mmask8 single_bit(int leading_or_trailing, __mmask8 old_mask, __
 	return mask;
 }
 
-bool sieve_get_max_min(__m512i a, __mmask16 mask, uint32_t& _max, uint32_t& _min, __mmask16& mask_max, __mmask16& mask_min) {
-	_max = _mm512_mask_reduce_max_epu32(mask, a);
-	_min = _mm512_mask_reduce_min_epu32(mask, a);
-	mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(_max));
-	mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(_min));
-
-}
-
-
 __m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
 	uint32_t buffer[16] = { 0 };
 	if (result == nullptr) _mm512_store_epi32(result = buffer, a);
@@ -131,6 +125,85 @@ __m512i sieve_sort32x16(__m512i a, uint32_t* result = nullptr) {
 		);
 	return _mm512_loadu_epi32(result);
 }
+__forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t* p_min, __mmask16* p_mask_min) {
+	if (mask != 0) {
+		*p_min = _mm512_mask_reduce_min_epu32(mask, a);
+		*p_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(*p_min));
+		return true;
+	}
+	return false;
+}
+
+__forceinline bool sieve_get_max(__mmask16 mask, __m512i a, uint32_t* p_max, __mmask16* p_mask_max) {
+	if (mask != 0) {
+		*p_max = _mm512_mask_reduce_max_epu32(mask, a);
+		*p_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(*p_max));
+		return true;
+	}
+	return false;
+}
+__forceinline bool sieve_get_max_min(__mmask16 mask, __m512i a, uint32_t* p_max, uint32_t* p_min, __mmask16* p_mask_max, __mmask16* p_mask_min) {
+	if (mask != 0) {
+		*p_max = _mm512_mask_reduce_max_epu32(mask, a);
+		*p_min = _mm512_mask_reduce_min_epu32(mask, a);
+		*p_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(*p_max));
+		*p_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(*p_min));
+		return true;
+	}
+	return false;
+}
+
+int seive_get_min(uint32_t* p_min, __mmask16* p_all_masks, __mmask16 masks[16], __m512i values[16]) {
+	if (p_all_masks == 0 || *p_all_masks==0) return 0;
+	int count = 0;
+	uint32_t  _mines[16] = { 0 };
+	__mmask16 mask_mines[16] = { 0 };
+	for (size_t i = 0; i < 16; i++) {
+		if ((*p_all_masks & (1 << i)) != 0) {
+			if (sieve_get_min(masks[i],
+				values[i],
+				_mines + i, mask_mines + i))
+			{
+				//OK
+			}
+		}
+	}
+	__mmask16 found_mask = 0;
+	if (sieve_get_min(*p_all_masks, _mm512_loadu_epi32(_mines), p_min, &found_mask)){
+		//update masks
+		while (found_mask != 0) {
+			int idx = get_lsb_index(found_mask);
+			count += __popcnt16(mask_mines[idx]);
+			masks[idx] &= ~mask_mines[idx];
+			found_mask &= ~(1 << idx);
+		}
+		*p_all_masks &= ~_mm256_cmpeq_epu16_mask(
+			_mm256_loadu_epi16(masks), _zero);
+	}
+	
+	return count;
+}
+//[16u32]x16
+void sieve_sort_256(uint32_t a[256]) {
+	__m512i values[16];
+	for (size_t i = 0; i < 16; i++) {
+		values[i] = _mm512_loadu_epi32(a + (i<<4));
+	}
+	__mmask16 masks[16];
+	memset(masks, 0xff, sizeof(masks));
+	__mmask16 all_masks = 0xffff;
+	int p = 0;
+	while(p<256) {
+		uint32_t _min = 0;
+		int count = seive_get_min(&_min, &all_masks, masks, values);
+		if (count == 0)break;
+		for (int i = 0; i < count;i++) {
+			a[p++] = _min;
+		}
+	}
+}
+
+
 __m512i sieve_sort64x8(__m512i a, uint64_t* result = nullptr) {
 	uint64_t buffer[8] = { 0 };
 	if (result == nullptr) _mm512_store_epi64(result = buffer, a);
@@ -224,7 +297,7 @@ bool sieve_sort_base256(uint32_t* a, size_t n) {
 		if (done = square_sort_base16(result, a, n >> 4, n)) {
 			memcpy(a, result, sizeof(result));
 		}
-		bool beq = std::equal(test,test+_base, result);
+		bool beq = std::equal(test, test + _base, result);
 		if (!beq) {
 			for (int i = 0; i < _base; i++) {
 				if (test[i] != result[i]) {
@@ -341,7 +414,7 @@ void tests() {
 
 int main(int argc, char* argv[])
 {
-#if  0
+#if 1
 	const int _length = 256;
 
 	uint32_t a[_length], b[_length], c[_length];
@@ -351,7 +424,7 @@ int main(int argc, char* argv[])
 	}
 	//print1d(a, _length);
 
-	sieve_sort_base256(a, _length);
+	sieve_sort_256(a);
 	print1d(a, _length);
 
 	std::sort(c, c + _length);
@@ -415,9 +488,9 @@ int main(int argc, char* argv[])
 		uint32_t result[count], compare[count];
 		memcpy(result, values[c], sizeof(result));
 		memcpy(compare, values[c], sizeof(compare));
-		sieve_sort_base256(result, count);
+		sieve_sort_256(result);
 		std::sort(compare, compare + count);
-		bool beq = std::equal(result,result+count, compare);
+		bool beq = std::equal(result, result + count, compare);
 		if (!beq) {
 			int bad = 0;
 			std::cout << "failed c=" << c << std::endl;
