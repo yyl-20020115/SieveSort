@@ -587,46 +587,48 @@ void sieve_sort_4K(uint32_t a[_4K], uint32_t* result = nullptr, int omp_depth = 
 	delete[] b;
 }
 const size_t _64K = _4K << 4;
-void sieve_sort_64K(uint32_t result[_64K], uint32_t a[_64K], int omp_depth = 2) {
-	uint32_t idx[16] = { 0 };
-	uint32_t** lines = new uint32_t * [16];
+void sieve_sort_64K(uint32_t a[_64K], uint32_t* result, int omp_depth = 2) {
+	uint32_t* b = new uint32_t[_64K];
+	__m512i idx = zero;
+	__m512i top = zero;
 	for (int i = 0; i < 16; i++) {
-		lines[i] = new uint32_t[_4K];
+		idx.m512i_u32[i] = i << 12;
+		top.m512i_u32[i] = (i + 1) << 12;
 	}
 	if (omp_depth > 0) {
 #pragma omp parallel for
 		for (int i = 0; i < 16; i++) {
 			uint32_t* pa = a + ((size_t)i << 12);
-			sieve_sort_4K(lines[i], pa, omp_depth - 1);
+			uint32_t* pb = b + ((size_t)i << 12);
+			sieve_sort_4K(pa, pb, omp_depth - 1);
 		}
 	}
 	else {
 		for (int i = 0; i < 16; i++) {
 			uint32_t* pa = a + ((size_t)i << 12);
-			sieve_sort_4K(lines[i], pa, 0);
+			uint32_t* pb = b + ((size_t)i << 12);
+			sieve_sort_4K(pa, pb, omp_depth - 1);
 		}
 	}
 
-	__mmask16 mask = 0x0ffff;
+	result = result == nullptr ? a : result;
+	__mmask16 mask = 0x0ffff, _mask_min = 0;
 
-	__m512i values = zero;
-	for (int i = 0; i < _64K; i++) {
-		for (int j = 0; j < 16; j++) {
-			if ((mask & (1 << j)) != 0) {
-				values.m512i_u32[j] = lines[j][idx[j]];
-			}
+	int pc = 0, i = 0;
+	uint32_t _min = 0;
+	while (i < _64K) {
+		__m512i values = _mm512_mask_i32gather_epi32(zero, mask, idx, b, sizeof(uint32_t));
+		if (!sieve_get_min(mask, values, _min, _mask_min)) break;
+		idx = _mm512_mask_add_epi32(idx, _mask_min, idx, ones);
+		mask &= (~_mm512_mask_cmpeq_epu32_mask(_mask_min, idx, top));
+		pc = __popcnt16(_mask_min);
+		for (int j = 0; j < pc; j++) {
+			result[i++] = _min;
 		}
-		int p = sieve_get_min_index(mask, result[i], values);
-		idx[p]++;
-		if (idx[p] == _4K) {
-			mask &= ~(1 << p);
-		}
+		if (mask == 0) break;
 	}
-	for (int i = 0; i < 16; i++) {
-		delete[] lines[i];
-	}
-	delete[] lines;
-	}
+	delete[] b;
+}
 
 
 const size_t _1M = _64K << 4;
@@ -882,7 +884,7 @@ int main(int argc, char* argv[])
 #if 1
 	tests();
 #endif
-	const int count = _4K;
+	const int count = _64K;
 	const int max_repeats = 100;
 	uint32_t** values = new uint32_t * [max_repeats];
 	uint32_t** results = new uint32_t * [max_repeats];
@@ -900,7 +902,7 @@ int main(int argc, char* argv[])
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
-		sieve_sort_4K(values[c], results[c]);
+		sieve_sort_64K(values[c], results[c]);
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
