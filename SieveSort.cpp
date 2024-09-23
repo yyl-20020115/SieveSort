@@ -817,7 +817,7 @@ int main(int argc, char* argv[])
 #if 1
 	tests();
 #endif
-	const int count = _64K;
+	const int count = _1M;
 	const int max_repeats = 100;
 	uint32_t** values = new uint32_t * [max_repeats];
 	uint32_t** results = new uint32_t * [max_repeats];
@@ -835,7 +835,7 @@ int main(int argc, char* argv[])
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
-		sieve_sort_64K(values[c], count, results[c]);
+		sieve_sort_1M(values[c], count, results[c]);
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
