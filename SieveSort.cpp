@@ -145,10 +145,10 @@ __forceinline bool sieve_get_max(__mmask16 mask, __m512i a, uint32_t& _max, __mm
 }
 __forceinline bool sieve_get_min_max(__mmask16 mask, __m512i a, uint32_t& _min, uint32_t& _max, __mmask16& _mask_min, __mmask16& _mask_max) {
 	if (mask != 0) {
-		_max = _mm512_mask_reduce_max_epu32(mask, a);
-		_min = _mm512_mask_reduce_min_epu32(mask, a);
-		_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(_max));
-		_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(_min));
+		_mask_max = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
+			_max = _mm512_mask_reduce_max_epu32(mask, a)));
+		_mask_min = _mm512_cmpeq_epi32_mask(a, _mm512_set1_epi32(
+			_min = _mm512_mask_reduce_min_epu32(mask, a)));
 		return true;
 	}
 	return false;
@@ -171,13 +171,21 @@ int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, __mmask16 masks[16], _
 	}
 	__mmask16 found_mask = 0;
 	if (sieve_get_min(_all_masks, _mm512_loadu_epi32(_mines), p_min, found_mask)) {
-		//update masks
-		while (found_mask != 0) {
-			int idx = get_lsb_index(found_mask);
-			count += __popcnt16(mask_mines[idx]);
-			masks[idx] &= ~mask_mines[idx];
-			found_mask &= ~(1 << idx);
-		}
+		__m256i __mask_mines = _mm256_loadu_epi16(mask_mines);
+		count = _mm512_reduce_add_epu16(_mm512_castsi256_si512(
+			_mm256_maskz_popcnt_epi16(found_mask, __mask_mines)));
+		__m512i _mask_mines = _mm512_cvtepu16_epi32(__mask_mines);
+		__m512i _masks = _mm512_cvtepu16_epi32(_mm256_loadu_epi16(masks));
+		_masks = _mm512_mask_andnot_epi32(_masks, found_mask, _mask_mines, _masks);
+		_mm256_storeu_epi16(masks, _mm512_cvtepi32_epi16(_masks));
+
+		////update masks
+		//while (found_mask != 0) {
+		//	int idx = get_lsb_index(found_mask);
+		//	count += __popcnt16(mask_mines[idx]);
+		//	masks[idx] &= ~mask_mines[idx];
+		//	found_mask &= ~(1 << idx);
+		//}
 		_all_masks &= ~_mm256_cmpeq_epu16_mask(
 			_mm256_loadu_epi16(masks), _zero);
 	}
@@ -207,11 +215,11 @@ void sieve_sort_256(uint32_t a[256]) {
 
 void seive_get_min_max(
 	int use_mask,
-	uint32_t& p_min, 
+	uint32_t& p_min,
 	uint32_t& p_max,
 	uint32_t& _min_count,
 	uint32_t& _max_count,
-	__mmask16& _all_masks, 
+	__mmask16& _all_masks,
 	__mmask16 masks[16],
 	__m512i values[16]) {
 
@@ -235,7 +243,7 @@ void seive_get_min_max(
 		}
 	}
 	__mmask16 found_mask = 0;
-	if ((use_mask & 1)!=0 && sieve_get_min(_all_masks, _mm512_loadu_epi32(_mines), p_min, found_mask)) {
+	if ((use_mask & 1) != 0 && sieve_get_min(_all_masks, _mm512_loadu_epi32(_mines), p_min, found_mask)) {
 		//update masks
 		while (found_mask != 0) {
 			int idx = get_lsb_index(found_mask);
@@ -275,7 +283,7 @@ void sieve_sort_256_dual(uint32_t a[256]) {
 	while (i <= j) {
 		seive_get_min_max(
 			3,
-			_min, _max, 
+			_min, _max,
 			_min_count, _max_count,
 			all_masks, masks, values);
 
@@ -376,22 +384,12 @@ bool sieve_sort_base256(uint32_t* a, size_t n) {
 	else if (n == _base) {
 		uint32_t test[_base] = { 0 };
 		memcpy(test, a, sizeof(test));
-		std::sort(test, test + _base);
 		sieve_sort_base16(a, n >> 4, false);
 		sieve_sort_base16(a, n >> 4, true);
 		uint32_t result[_base] = { 0 };
 		if (done = square_sort_base16(result, a, n >> 4, n)) {
 			memcpy(a, result, sizeof(result));
 		}
-		bool beq = std::equal(test, test + _base, result);
-		if (!beq) {
-			for (int i = 0; i < _base; i++) {
-				if (test[i] != result[i]) {
-					std::cout << "found" << std::endl;
-				}
-			}
-		}
-
 	}
 	else //n<_base
 	{
@@ -510,7 +508,7 @@ int main(int argc, char* argv[])
 	}
 	//print1d(a, _length);
 
-	sieve_sort_256_dual(a);
+	sieve_sort_256(a);
 	print1d(a, _length);
 
 	std::sort(c, c + _length);
