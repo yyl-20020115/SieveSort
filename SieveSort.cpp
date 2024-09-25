@@ -577,9 +577,10 @@ bool sieve_sort(uint32_t** pa, size_t n, int omp_depth = 32)
 		return true;
 	}
 	else if (n == 2) {
-		uint32_t a0 = *pa[0], a1 = *pa[1];
-		*pa[0] = std::min(a0, a1);
-		*pa[1] = std::max(a0, a1);
+		uint32_t a0 = *(*pa+0);
+		uint32_t a1 = *(*pa+1);
+		*(*pa + 0) = std::min(a0, a1);
+		*(*pa + 1) = std::max(a0, a1);
 		return true;
 	}
 	else {
@@ -609,7 +610,7 @@ __forceinline uint64_t generate_random_64(uint64_t range = 0ULL) {
 	return range == 0ULL ? v0 : (uint64_t)((v0 / (double)(~0ULL)) * range);
 }
 
-void tests() {
+void short_tests() {
 	const int max_retries = 100000;
 	uint64_t result64x8[8] = { 0 };
 	uint64_t compare64x8[8] = { 0 };
@@ -649,7 +650,7 @@ void tests() {
 	std::cout << "32 pass" << std::endl;
 	std::cout << "all pass" << std::endl;
 }
-void do_test(const size_t count = 256, const int max_repeats = 1, const int use_omp = 0) {
+void long_test(const size_t count = 256, const int max_repeats = 1, const int use_omp = 0) {
 	uint32_t** results_sieve = new uint32_t * [max_repeats];
 	uint32_t** results_stdst = new uint32_t * [max_repeats];
 #pragma omp parallel for
@@ -704,22 +705,17 @@ void do_test(const size_t count = 256, const int max_repeats = 1, const int use_
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
+void long_tests(size_t start = 1ULL<<16, size_t end = 1ULL<<20) {
+	for (size_t i = start; i <= end; i++) {
+		std::cout << std::endl;
+		std::cout << "i=" << i << std::endl;
+		long_test(i, 1, 1);
+	}
+}
 int main(int argc, char* argv[])
 {
-#if 0
-	tests();
-#endif
-#if 0
-	size_t t = 1ULL << 32;
-	do_test(t, 1, 1);
-#endif
-	for (int i = 8; i <= 28; i += 4) {
-		size_t t = 1ULL << i;
-		std::cout << std::endl;
-		std::cout << "i=" << i << ",t=" << t << std::endl;
-		do_test(t + 0, 1, 1);
-	}
-
+	short_tests();
+	long_tests();
 	return 0;
 }
 
