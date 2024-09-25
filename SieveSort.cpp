@@ -531,8 +531,8 @@ bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder, __mma
 	return false;
 }
 
-bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth);
-bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth) {
+bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int depth, int omp_depth);
+bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int depth, int omp_depth) {
 	size_t loops = 0, stride = 0, reminder = 0;
 	__mmask16 mask = 0;
 	if (!get_config(n, loops, stride, reminder, mask)) return false;
@@ -542,7 +542,7 @@ bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_depth, int 
 			sieve_sort_core(a + i * stride,
 				(i == loops - 1 && reminder > 0) ? reminder : stride,
 				result + i * stride,
-				max_depth, depth - 1, omp_depth - 1);
+				depth - 1, omp_depth - 1);
 		}
 	}
 	else {
@@ -550,7 +550,7 @@ bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_depth, int 
 			sieve_sort_core(a + i * stride,
 				(i == loops - 1 && reminder > 0) ? reminder : stride,
 				result + i * stride,
-				max_depth, depth - 1, omp_depth - 1);
+				depth - 1, omp_depth - 1);
 		}
 	}
 	if (depth >= 4 && ((depth - 3) & 1) == 1) {
@@ -558,10 +558,10 @@ bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_depth, int 
 	}
 	return sieve_collect(n, loops, stride, reminder, mask, result, a);
 }
-bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth) {
+bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int depth, int omp_depth) {
 	return (n <= _256)
 		? sieve_sort_256(a, n, result)
-		: sieve_sort_omp(a, n, result, max_depth, depth, omp_depth)
+		: sieve_sort_omp(a, n, result, depth, omp_depth)
 		;
 }
 
@@ -586,7 +586,7 @@ bool sieve_sort(uint32_t** pa, size_t n, int omp_depth = 32)
 		uint32_t* result = new uint32_t[n];
 		if (result != nullptr) {
 			int max_depth = get_depth(n);
-			done = sieve_sort_core(*pa, n, result, max_depth, max_depth, omp_depth);
+			done = sieve_sort_core(*pa, n, result, max_depth, omp_depth);
 			if (max_depth >= 4 && ((max_depth & 1) == 0)) {
 				std::swap(*pa, result);
 			}
