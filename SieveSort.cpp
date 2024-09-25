@@ -358,10 +358,20 @@ bool sieve_sort_16(uint32_t* a, size_t n, uint32_t* result = nullptr) {
 		if (result != nullptr) result[0] = a[0];
 		return true;
 	}
+	else if (n == 2) {
+		uint32_t a0 = a[0], a1 = a[1];
+		a[0] = std::min(a0, a1);
+		a[1] = std::max(a0, a1);
+		if (result != nullptr) {
+			result[0] = a[0];
+			result[1] = a[1];
+		}
+		return true;
+	}
 	else { //2=<n<=16
 		uint32_t b[_16];
-		memset(b, 0xff, sizeof(b));
 		memcpy(b, a, sizeof(uint32_t) * n);
+		memset(b + n, 0xff, sizeof(uint32_t) * (_16 - n));
 		sieve_sort16_32_loop(_mm512_loadu_epi32(b), b);
 		memcpy(a, b, sizeof(uint32_t) * n);
 		if (result != nullptr) {
@@ -377,8 +387,8 @@ bool sieve_sort_256(uint32_t* a/*[_256]*/, size_t n, uint32_t* result = nullptr)
 		return false;
 	else { //16<n<=256
 		uint32_t b[_256];
-		memset(b, 0xff, sizeof(b));
 		memcpy(b, a, sizeof(uint32_t) * n);
+		memset(b + n, 0xff, sizeof(uint32_t) * (_256 - n));
 		__m512i values[16] = { 0 };
 		for (size_t i = 0; i < 16; i++) {
 			values[i] = _mm512_loadu_epi32(b + (i << 4));
@@ -409,7 +419,7 @@ __forceinline int get_top_bit_index(size_t n) {
 __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask16& mask, bool& flip, int min_bits = 8) {
 	if (n < ((1ULL) << min_bits)) return false;
 	int top_bits = get_top_bit_index(n);
-	int nb_count = __popcnt64(n);
+	int nb_count = (int)__popcnt64(n);
 	int all_bits = nb_count == 1 ? (top_bits - 1) : (top_bits & ~0x3) == top_bits ? top_bits : (top_bits + ((n - ((n >> 4) << 4)) != 0ULL));
 	int max_bits = ((all_bits >> 2) + ((all_bits & 0x3) != 0)) << 2;
 
@@ -431,7 +441,8 @@ bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder, __mma
 	if (flip) {
 		std::swap(source, destination);
 	}
-	if (stride <= (1ULL << 32)) {
+	const size_t large_stride_threshold = (1ULL << 24); //(1ULL << 12))
+	if (stride <= large_stride_threshold) {
 		__m512i idx = zero;
 		__m512i top = zero;
 		uint32_t p = 0;
@@ -467,8 +478,8 @@ bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder, __mma
 			p += stride;
 		}
 		for (int i = 0; i < loops_high; i++) {
-			_idx_low_.m512i_u64[i] = p;
-			top_low_.m512i_u64[i] = p + ((i == loops - 1 && reminder > 0) ? reminder : stride);
+			_idx_high.m512i_u64[i] = p;
+			top_high.m512i_u64[i] = p + ((i == loops - 1 && reminder > 0) ? reminder : stride);
 			p += stride;
 		}
 
@@ -496,8 +507,8 @@ bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder, __mma
 
 			_idx_low_ = _mm512_mask_add_epi64(_idx_low_, _mask_min_low_, _idx_low_, ones64);
 			_idx_high = _mm512_mask_add_epi64(_idx_high, _mask_min_high, _idx_high, ones64);
-			_mask_low_ &= (~_mm512_mask_cmpeq_epu64_mask(_mask_min_low_, _idx_low_, top_low_));
-			_mask_high &= (~_mm512_mask_cmpeq_epu64_mask(_mask_min_high, _idx_high, top_high));
+			_mask_low_ &= _mm512_mask_cmpeq_epu64_mask(_mask_min_low_, _idx_low_, top_low_);
+			_mask_high &= _mm512_mask_cmpeq_epu64_mask(_mask_min_high, _idx_high, top_high);
 
 			mask &= ~((((__mmask16)_mask_high) << 8) | (__mmask16)_mask_low_);
 			pc = __popcnt16(_mask_min);
@@ -554,18 +565,18 @@ bool sieve_sort(uint32_t* a, size_t n, int depth = 32)
 	else {
 		uint32_t* result = new uint32_t[n];
 		if (result != nullptr) {
-			memset(result, 0xff, n);
+			//memset(result, 0xff, n);
 			done = sieve_sort_core(a, n, result, depth);
-			//memcpy(a, result, n * sizeof(uint32_t));
 			delete[] result;
 		}
 	}
 	return done;
 }
 
-__forceinline uint32_t generate_random_32(uint32_t range = 0U) {
+__forceinline uint32_t generate_random_32(size_t range = 0ULL) {
 	uint64_t v0 = 0ULL;
 	int r = _rdrand64_step(&v0);
+	if (range >= (1ULL << 32)) range = (~0U);
 	uint32_t value = ((v0 >> 32) & (~0U)) ^ (v0 & (~0U));
 	return range == 0 ? value : (uint32_t)((value / (double)(~0U)) * range);
 }
@@ -615,15 +626,15 @@ void tests() {
 	std::cout << "32 pass" << std::endl;
 	std::cout << "all pass" << std::endl;
 }
-void do_test(const int count = 256, const int max_repeats = 1, const int use_omp = 0) {
+void do_test(const size_t count = 256, const int max_repeats = 1, const int use_omp = 0) {
 	uint32_t** results_sieve = new uint32_t * [max_repeats];
 	uint32_t** results_stdst = new uint32_t * [max_repeats];
 #pragma omp parallel for
 	for (int c = 0; c < max_repeats; c++) {
 		results_sieve[c] = new uint32_t[count];
 		results_stdst[c] = new uint32_t[count];
-		memset(results_sieve[c], 0, sizeof(uint32_t) * count);
-		for (int i = 0; i < count; i++) {
+		//regard >256M as random memory already
+		for (size_t i = 0; i < count; i++) {
 			results_stdst[c][i] = results_sieve[c][i] = generate_random_32(count);
 		}
 	}
@@ -675,14 +686,22 @@ int main(int argc, char* argv[])
 #if 0
 	tests();
 #endif
-
-	for (int i = 0; i < 32; i += 4) {
+#if 0
+	size_t t = 1ULL << 32;
+	do_test(t, 1, 1);
+#endif
+	for (int i = 0; i < 24; i += 4) {
 		int t = 1 << i;
 		std::cout << std::endl;
 		std::cout << "i=" << i << ",t=" << t << std::endl;
 		do_test(t - 1, 1, 1);
 		do_test(t + 0, 1, 1);
 		do_test(t + 1, 1, 1);
+		if (t == 1) {
+			for (int j = 2; j < 16; j++) {
+				do_test(j, 1, 1);
+			}
+		}
 	}
 
 	return 0;
