@@ -441,7 +441,7 @@ bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder, __mma
 	if (flip) {
 		std::swap(source, destination);
 	}
-	const size_t large_stride_threshold = (1ULL << 24); //(1ULL << 12))
+	const size_t large_stride_threshold = _16M; //(1ULL << 24); //(1ULL << 12))
 	if (stride <= large_stride_threshold) {
 		__m512i idx = zero;
 		__m512i top = zero;
