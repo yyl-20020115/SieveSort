@@ -143,7 +143,13 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="SieveSort.cpp" />
+    <ClCompile Include="SieveSort256.cpp" />
+    <ClCompile Include="SieveSort512.cpp" />
+    <ClCompile Include="test.cpp" />
+    <ClCompile Include="Utils.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="SieveSort.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
