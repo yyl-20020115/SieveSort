@@ -30,8 +30,8 @@ static const __m256i ones64 = _mm256_set1_epi64x(1);
 
 static __forceinline short _mm256_cmpge_epi32_popcnt(__m256i a, __m256i b) {
 	__m256i result = _mm256_or_si256(_mm256_cmpgt_epi32(a, b), _mm256_cmpeq_epi32(a, b));
-	short c = 
-		+ (_mm256_extract_epi32(result, 0) != 0)
+	short c =
+		+(_mm256_extract_epi32(result, 0) != 0)
 		+ (_mm256_extract_epi32(result, 1) != 0)
 		+ (_mm256_extract_epi32(result, 2) != 0)
 		+ (_mm256_extract_epi32(result, 3) != 0)
@@ -44,9 +44,8 @@ static __forceinline short _mm256_cmpge_epi32_popcnt(__m256i a, __m256i b) {
 }
 static __forceinline short _mm256_cmple_epi32_popcnt(__m256i a, __m256i b) {
 	__m256i result = _mm256_cmpgt_epi32(b, a);
-
 	short c = 8 - (
-		+ (_mm256_extract_epi32(result, 0) != 0)
+		+(_mm256_extract_epi32(result, 0) != 0)
 		+ (_mm256_extract_epi32(result, 1) != 0)
 		+ (_mm256_extract_epi32(result, 2) != 0)
 		+ (_mm256_extract_epi32(result, 3) != 0)
@@ -70,30 +69,29 @@ static __forceinline __mmask8 _mm256_mask_cmpeq_epi32_mask_(__mmask8 mask, __m25
 	t |= ((r.m256i_u32[7] != 0) << 7);
 	return t & mask;
 }
-
 static __forceinline bool sieve_get_min(__mmask8 mask, __m256i a, uint32_t& _min, __mmask8& _mask_min) {
 	if (mask == 0) return false;
 	__m128i counts = _mm_setr_epi16(
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[6]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[5]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[4]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[3]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[2]), a),
+		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[0]), a),
 		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[1]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[0]), a)
+		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[2]), a),
+		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[3]), a),
+		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[4]), a),
+		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[5]), a),
+		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[6]), a),
+		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
 	);
-	counts.m128i_i16[0] = (mask & (1 << 0)) ? counts.m128i_i16[0] : 0xffff;
-	counts.m128i_i16[1] = (mask & (1 << 1)) ? counts.m128i_i16[1] : 0xffff;
-	counts.m128i_i16[2] = (mask & (1 << 2)) ? counts.m128i_i16[2] : 0xffff;
-	counts.m128i_i16[3] = (mask & (1 << 3)) ? counts.m128i_i16[3] : 0xffff;
-	counts.m128i_i16[4] = (mask & (1 << 4)) ? counts.m128i_i16[4] : 0xffff;
-	counts.m128i_i16[5] = (mask & (1 << 5)) ? counts.m128i_i16[5] : 0xffff;
-	counts.m128i_i16[6] = (mask & (1 << 6)) ? counts.m128i_i16[6] : 0xffff;
-	counts.m128i_i16[7] = (mask & (1 << 7)) ? counts.m128i_i16[7] : 0xffff;
+	counts.m128i_u16[0] = ((mask & (1 << 0)) != 0) ? counts.m128i_u16[0] : 0xffff;
+	counts.m128i_u16[1] = ((mask & (1 << 1)) != 0) ? counts.m128i_u16[1] : 0xffff;
+	counts.m128i_u16[2] = ((mask & (1 << 2)) != 0) ? counts.m128i_u16[2] : 0xffff;
+	counts.m128i_u16[3] = ((mask & (1 << 3)) != 0) ? counts.m128i_u16[3] : 0xffff;
+	counts.m128i_u16[4] = ((mask & (1 << 4)) != 0) ? counts.m128i_u16[4] : 0xffff;
+	counts.m128i_u16[5] = ((mask & (1 << 5)) != 0) ? counts.m128i_u16[5] : 0xffff;
+	counts.m128i_u16[6] = ((mask & (1 << 6)) != 0) ? counts.m128i_u16[6] : 0xffff;
+	counts.m128i_u16[7] = ((mask & (1 << 7)) != 0) ? counts.m128i_u16[7] : 0xffff;
 
 	__m128i result = _mm_minpos_epu16(counts);
-	int index = result.m128i_i16[1] & 0x7;
+	unsigned int index = result.m128i_i16[1] & 0x7;
 	_mask_min = _mm256_mask_cmpeq_epi32_mask_(mask, a, _mm256_set1_epi32(_min = a.m256i_u32[index]));
 	return true;
 }
@@ -110,18 +108,18 @@ static __forceinline bool sieve_get_min_max(__mmask8 mask, __m256i a, uint32_t& 
 		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
 	);
 
-	counts.m128i_i16[0] = (mask & (1 << 0)) ? counts.m128i_i16[0] : 0xffff;
-	counts.m128i_i16[1] = (mask & (1 << 1)) ? counts.m128i_i16[1] : 0xffff;
-	counts.m128i_i16[2] = (mask & (1 << 2)) ? counts.m128i_i16[2] : 0xffff;
-	counts.m128i_i16[3] = (mask & (1 << 3)) ? counts.m128i_i16[3] : 0xffff;
-	counts.m128i_i16[4] = (mask & (1 << 4)) ? counts.m128i_i16[4] : 0xffff;
-	counts.m128i_i16[5] = (mask & (1 << 5)) ? counts.m128i_i16[5] : 0xffff;
-	counts.m128i_i16[6] = (mask & (1 << 6)) ? counts.m128i_i16[6] : 0xffff;
-	counts.m128i_i16[7] = (mask & (1 << 7)) ? counts.m128i_i16[7] : 0xffff;
+	counts.m128i_u16[0] = (mask & (1 << 0)) ? counts.m128i_u16[0] : 0xffff;
+	counts.m128i_u16[1] = (mask & (1 << 1)) ? counts.m128i_u16[1] : 0xffff;
+	counts.m128i_u16[2] = (mask & (1 << 2)) ? counts.m128i_u16[2] : 0xffff;
+	counts.m128i_u16[3] = (mask & (1 << 3)) ? counts.m128i_u16[3] : 0xffff;
+	counts.m128i_u16[4] = (mask & (1 << 4)) ? counts.m128i_u16[4] : 0xffff;
+	counts.m128i_u16[5] = (mask & (1 << 5)) ? counts.m128i_u16[5] : 0xffff;
+	counts.m128i_u16[6] = (mask & (1 << 6)) ? counts.m128i_u16[6] : 0xffff;
+	counts.m128i_u16[7] = (mask & (1 << 7)) ? counts.m128i_u16[7] : 0xffff;
 
 	__m128i result = _mm_minpos_epu16(counts);
-	short value = result.m128i_i16[0];
-	short index = result.m128i_i16[1] & 0x7;
+	unsigned short value = result.m128i_i16[0];
+	unsigned short index = result.m128i_i16[1] & 0x7;
 	_mask_min = _mm256_mask_cmpeq_epi32_mask_(mask, a, _mm256_set1_epi32(_min = a.m256i_u32[index]));
 
 	mask &= ~(_mask_min);
@@ -136,18 +134,18 @@ static __forceinline bool sieve_get_min_max(__mmask8 mask, __m256i a, uint32_t& 
 		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
 	);
 
-	counts.m128i_i16[0] = (mask & (1 << 0)) ? counts.m128i_i16[0] : 0xffff;
-	counts.m128i_i16[1] = (mask & (1 << 1)) ? counts.m128i_i16[1] : 0xffff;
-	counts.m128i_i16[2] = (mask & (1 << 2)) ? counts.m128i_i16[2] : 0xffff;
-	counts.m128i_i16[3] = (mask & (1 << 3)) ? counts.m128i_i16[3] : 0xffff;
-	counts.m128i_i16[4] = (mask & (1 << 4)) ? counts.m128i_i16[4] : 0xffff;
-	counts.m128i_i16[5] = (mask & (1 << 5)) ? counts.m128i_i16[5] : 0xffff;
-	counts.m128i_i16[6] = (mask & (1 << 6)) ? counts.m128i_i16[6] : 0xffff;
-	counts.m128i_i16[7] = (mask & (1 << 7)) ? counts.m128i_i16[7] : 0xffff;
+	counts.m128i_u16[0] = (mask & (1 << 0)) ? counts.m128i_u16[0] : 0xffff;
+	counts.m128i_u16[1] = (mask & (1 << 1)) ? counts.m128i_u16[1] : 0xffff;
+	counts.m128i_u16[2] = (mask & (1 << 2)) ? counts.m128i_u16[2] : 0xffff;
+	counts.m128i_u16[3] = (mask & (1 << 3)) ? counts.m128i_u16[3] : 0xffff;
+	counts.m128i_u16[4] = (mask & (1 << 4)) ? counts.m128i_u16[4] : 0xffff;
+	counts.m128i_u16[5] = (mask & (1 << 5)) ? counts.m128i_u16[5] : 0xffff;
+	counts.m128i_u16[6] = (mask & (1 << 6)) ? counts.m128i_u16[6] : 0xffff;
+	counts.m128i_u16[7] = (mask & (1 << 7)) ? counts.m128i_u16[7] : 0xffff;
 
 	result = _mm_minpos_epu16(counts);
-	value = result.m128i_i16[0];
-	index = result.m128i_i16[1] & 0x7;
+	value = result.m128i_u16[0];
+	index = result.m128i_u16[1] & 0x7;
 	_mask_max = _mm256_mask_cmpeq_epi32_mask_(mask, a, _mm256_set1_epi32(_max = a.m256i_u32[index]));
 	return true;
 }
@@ -196,31 +194,44 @@ __m256i sieve_sort8_32_loop(__m256i a, uint32_t* result /*[8]*/) {
 	_mm256_storeu_epi32(result, target);
 	return target;
 }
-static __forceinline int _mm128_reduce_add_maskz_popcnt_epu16(__mmask8 mask, __m128i masks) {
+static __forceinline int _mm128_reduce_add_maskz_popcnt_epu16_low_half(__mmask8 mask, __m128i masks) {
 	return
-		+(int)((mask & 1 << 0) ? __popcnt16(masks.m128i_u16[0]) : 0)
-		+ (int)((mask & 1 << 1) ? __popcnt16(masks.m128i_u16[1]) : 0)
-		+ (int)((mask & 1 << 2) ? __popcnt16(masks.m128i_u16[2]) : 0)
-		+ (int)((mask & 1 << 3) ? __popcnt16(masks.m128i_u16[3]) : 0)
-		+ (int)((mask & 1 << 4) ? __popcnt16(masks.m128i_u16[4]) : 0)
-		+ (int)((mask & 1 << 5) ? __popcnt16(masks.m128i_u16[5]) : 0)
-		+ (int)((mask & 1 << 6) ? __popcnt16(masks.m128i_u16[6]) : 0)
-		+ (int)((mask & 1 << 7) ? __popcnt16(masks.m128i_u16[7]) : 0)
+		+(int)((mask & (1 << 0)) ? __popcnt16(masks.m128i_u8[0]) : 0)
+		+ (int)((mask & (1 << 1)) ? __popcnt16(masks.m128i_u8[1]) : 0)
+		+ (int)((mask & (1 << 2)) ? __popcnt16(masks.m128i_u8[2]) : 0)
+		+ (int)((mask & (1 << 3)) ? __popcnt16(masks.m128i_u8[3]) : 0)
+		+ (int)((mask & (1 << 4)) ? __popcnt16(masks.m128i_u8[4]) : 0)
+		+ (int)((mask & (1 << 5)) ? __popcnt16(masks.m128i_u8[5]) : 0)
+		+ (int)((mask & (1 << 6)) ? __popcnt16(masks.m128i_u8[6]) : 0)
+		+ (int)((mask & (1 << 7)) ? __popcnt16(masks.m128i_u8[7]) : 0)
 		;
 }
-static __forceinline __mmask8 _mm_cmpeq_epi16_mask_(__m128i a, __m128i b)
+static __forceinline __mmask8 _mm_cmpeq_epi16_mask_half(__m128i a, __m128i b)
 {
 	__mmask8 mask = 0;
-	__m128i r = _mm_cmpeq_epi16(a, b);
-	mask |= (r.m128i_u16[0] == 0xffff ? (1 << 0) : 0);
-	mask |= (r.m128i_u16[1] == 0xffff ? (1 << 1) : 0);
-	mask |= (r.m128i_u16[2] == 0xffff ? (1 << 2) : 0);
-	mask |= (r.m128i_u16[3] == 0xffff ? (1 << 3) : 0);
-	mask |= (r.m128i_u16[4] == 0xffff ? (1 << 4) : 0);
-	mask |= (r.m128i_u16[5] == 0xffff ? (1 << 5) : 0);
-	mask |= (r.m128i_u16[6] == 0xffff ? (1 << 6) : 0);
-	mask |= (r.m128i_u16[7] == 0xffff ? (1 << 7) : 0);
+	__m128i r = _mm_cmpeq_epi8(a, b);
+	mask |= (r.m128i_u8[0] != 0 ? (1 << 0) : 0);
+	mask |= (r.m128i_u8[1] != 0 ? (1 << 1) : 0);
+	mask |= (r.m128i_u8[2] != 0 ? (1 << 2) : 0);
+	mask |= (r.m128i_u8[3] != 0 ? (1 << 3) : 0);
+	mask |= (r.m128i_u8[4] != 0 ? (1 << 4) : 0);
+	mask |= (r.m128i_u8[5] != 0 ? (1 << 5) : 0);
+	mask |= (r.m128i_u8[6] != 0 ? (1 << 6) : 0);
+	mask |= (r.m128i_u8[7] != 0 ? (1 << 7) : 0);
 	return mask;
+}
+static __forceinline __m128i _mm_mask_andnot_si128_half(__m128i src, __mmask8 mask, __m128i a, __m128i b)
+{
+	__m128i r = _mm_andnot_si128(a, b);
+	r.m128i_u8[0] = (mask & (1 << 0)) ? r.m128i_u8[0] : src.m128i_u8[0];
+	r.m128i_u8[1] = (mask & (1 << 1)) ? r.m128i_u8[1] : src.m128i_u8[1];
+	r.m128i_u8[2] = (mask & (1 << 2)) ? r.m128i_u8[2] : src.m128i_u8[2];
+	r.m128i_u8[3] = (mask & (1 << 3)) ? r.m128i_u8[3] : src.m128i_u8[3];
+	r.m128i_u8[4] = (mask & (1 << 4)) ? r.m128i_u8[4] : src.m128i_u8[4];
+	r.m128i_u8[5] = (mask & (1 << 5)) ? r.m128i_u8[5] : src.m128i_u8[5];
+	r.m128i_u8[6] = (mask & (1 << 6)) ? r.m128i_u8[6] : src.m128i_u8[6];
+	r.m128i_u8[7] = (mask & (1 << 7)) ? r.m128i_u8[7] : src.m128i_u8[7];
+	return _mm_insert_epi64(r, 0, 1);
 }
 static __forceinline int seive_get_min(uint32_t& p_min, __mmask8& _all_masks, __mmask8 masks[8], __m256i values[8]) {
 	if (_all_masks == 0) return 0;
@@ -228,7 +239,12 @@ static __forceinline int seive_get_min(uint32_t& p_min, __mmask8& _all_masks, __
 	uint32_t  _mines[8];
 	__mmask8 mask_mines[8];
 	for (size_t i = 0; i < 8; i++) {
-		if ((_all_masks & (1 << i)) != 0 && sieve_get_min(masks[i],
+		if (masks[i] == 0) {
+			_mines[i] = 0xffff;
+			mask_mines[i] = 0;
+		}
+		else if (sieve_get_min(
+			masks[i],
 			values[i],
 			_mines[i],
 			mask_mines[i]))
@@ -238,18 +254,18 @@ static __forceinline int seive_get_min(uint32_t& p_min, __mmask8& _all_masks, __
 	}
 	__mmask8 found_mask = 0;
 	if (sieve_get_min(_all_masks, _mm256_loadu_epi32(_mines), p_min, found_mask)) {
-		__m128i _mask_mines = _mm_loadu_epi16(mask_mines);
-		count = _mm128_reduce_add_maskz_popcnt_epu16(found_mask, _mask_mines);
-		__m128i _masks = _mm_andnot_si128(_mask_mines, _mm_loadu_epi16(masks));
-
-		_all_masks &= ~(found_mask | _mm_cmpeq_epi16_mask_(_masks, __zero));
-
-		_mm_storeu_epi16(masks, _masks);
+		__m128i _mask_mines_m128 = _mm_loadu_si64(mask_mines);
+		__m128i _masks_m128 = _mm_loadu_si64(masks);
+		count = _mm128_reduce_add_maskz_popcnt_epu16_low_half(found_mask, _mask_mines_m128);
+		_masks_m128 = _mm_mask_andnot_si128_half(_masks_m128, found_mask, _mask_mines_m128, _masks_m128);
+		_all_masks &= ~(_mm_cmpeq_epi16_mask_half(_mask_mines_m128, __zero));
+		_mm_storeu_si64(masks, _masks_m128);
 	}
 	return count;
 }
 
-static bool sieve_sort_8(uint32_t* a /*[8]*/, size_t n, uint32_t* result/*[8]*/) {
+
+bool sieve_sort_8(uint32_t* a /*[8]*/, size_t n, uint32_t* result/*[8]*/) {
 #ifdef USE_STD_SORT
 	std::sort(a, a + n);
 	memcpy(result, a, n * sizeof(uint32_t));
@@ -279,8 +295,8 @@ static bool sieve_sort_8(uint32_t* a /*[8]*/, size_t n, uint32_t* result/*[8]*/)
 		return true;
 	}
 #endif
-	}
-static bool sieve_sort_128(uint32_t* a/*[_128]*/, size_t n, uint32_t* result) {
+}
+bool sieve_sort_64(uint32_t* a/*[64]*/, size_t n, uint32_t* result) {
 #ifdef USE_STD_SORT
 	std::sort(a, a + n);
 	memcpy(result, a, n * sizeof(uint32_t));
@@ -288,21 +304,21 @@ static bool sieve_sort_128(uint32_t* a/*[_128]*/, size_t n, uint32_t* result) {
 #else
 	if (n <= 8)
 		return sieve_sort_8(a, n, result);
-	else if (n > 128)
+	else if (n > 64)
 		return false;
-	else { //8<n<=128
-		uint32_t b[128];
+	else { //8<n<=64
+		uint32_t b[64];
 		memcpy(b, a, sizeof(uint32_t) * n);
-		memset(b + n, 0xff, sizeof(uint32_t) * (128 - n));
+		memset(b + n, 0xff, sizeof(uint32_t) * (64 - n));
 		__m256i values[8] = {
-			_mm256_loadu_epi32(b + (0 << 4)),
-			_mm256_loadu_epi32(b + (1 << 4)),
-			_mm256_loadu_epi32(b + (2 << 4)),
-			_mm256_loadu_epi32(b + (3 << 4)),
-			_mm256_loadu_epi32(b + (4 << 4)),
-			_mm256_loadu_epi32(b + (5 << 4)),
-			_mm256_loadu_epi32(b + (6 << 4)),
-			_mm256_loadu_epi32(b + (7 << 4)),
+			_mm256_loadu_epi32(b + (0 << 3)),
+			_mm256_loadu_epi32(b + (1 << 3)),
+			_mm256_loadu_epi32(b + (2 << 3)),
+			_mm256_loadu_epi32(b + (3 << 3)),
+			_mm256_loadu_epi32(b + (4 << 3)),
+			_mm256_loadu_epi32(b + (5 << 3)),
+			_mm256_loadu_epi32(b + (6 << 3)),
+			_mm256_loadu_epi32(b + (7 << 3)),
 		};
 		__mmask8 masks[8];
 		memset(masks, 0xff, sizeof(masks));
@@ -332,7 +348,7 @@ static __forceinline int get_depth(size_t n) {
 			: (top_bits + ((n - ((n >> 3) << 3)) != 0ULL)));
 	return ((all_bits / 3) + ((all_bits % 3) != 0));
 }
-static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask8& mask, int min_bits = 7) {
+static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask8& mask, int min_bits = 6) {
 	if (n < ((1ULL) << min_bits)) return false;
 	int max_bits = get_depth(n) * 3;
 	stride = (1ULL) << (max_bits - 3);
@@ -341,7 +357,18 @@ static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, si
 	mask = ~((~0U) << (loops));
 	return true;
 }
-
+static __forceinline __m256i _mm256_mask_inc(__mmask8 k, __m256i a) {
+	return _mm256_add_epi32(a, _mm256_set_epi32(
+		(k & (1 << 7)) ? 1 : 0,
+		(k & (1 << 6)) ? 1 : 0,
+		(k & (1 << 5)) ? 1 : 0,
+		(k & (1 << 4)) ? 1 : 0,
+		(k & (1 << 3)) ? 1 : 0,
+		(k & (1 << 2)) ? 1 : 0,
+		(k & (1 << 1)) ? 1 : 0,
+		(k & (1 << 0)) ? 1 : 0
+	));
+}
 static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder, __mmask8 mask,
 	uint32_t* source, uint32_t* destination) {
 	if (n == 0 || loops == 0 || loops > 8 || mask == 0 || source == nullptr || destination == nullptr)
@@ -361,16 +388,26 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		uint32_t _min = 0;
 		__mmask8 _mask_min = 0;
 		while (mask != 0 && i < n) {
-			//TODO:
-			__m256i vmask = _zero;//mask
-			__m256i values = _mm256_mask_i32gather_epi32(_zero, (int*)source, idx, vmask, sizeof(uint32_t));
+			__m256i vmask = _mm256_setr_epi32(
+				(((mask & (1 << 7))!=0) ? -1 : 0),
+				(((mask & (1 << 6))!=0) ? -1 : 0),
+				(((mask & (1 << 5))!=0) ? -1 : 0),
+				(((mask & (1 << 4))!=0) ? -1 : 0),
+				(((mask & (1 << 3))!=0) ? -1 : 0),
+				(((mask & (1 << 2))!=0) ? -1 : 0),
+				(((mask & (1 << 1))!=0) ? -1 : 0),
+				(((mask & (1 << 0))!=0) ? -1 : 0)
+				);
+			__m256i values = _mm256_mask_i32gather_epi32(
+				_zero, (int*)source, idx, vmask, sizeof(uint32_t));
 			if (!sieve_get_min(mask, values, _min, _mask_min)) break;
-			idx = _mm256_mask_add_epi32(idx, _mask_min, idx, ones);
-			mask &= (~_mm256_mask_cmpeq_epu32_mask(_mask_min, idx, top));
+			idx = _mm256_mask_inc(_mask_min, idx);
+			mask &= (~_mm256_mask_cmpeq_epi32_mask_(_mask_min, idx, top));
 			pc = __popcnt16(_mask_min);
 			for (int j = 0; j < pc; j++)
 				destination[i++] = _min;
 		}
+		return true;
 	}
 	else if (stride <= extreme_large_stride_threshold) {
 		__m256i _idx_low_ = _zero;
@@ -435,24 +472,23 @@ static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int depth, i
 				depth - 1, omp_depth - 1);
 		}
 	}
-	if (depth >= 4 && ((depth - 3) & 1) == 1) {
+	if (depth >= 3 && ((depth - 2) & 1) == 1) {
 		std::swap(result, a);
 	}
 	return sieve_collect(n, loops, stride, reminder, mask, result, a);
 }
 static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int depth, int omp_depth) {
-	return (n <= 128)
-		? sieve_sort_128(a, n, result)
+	return (n <= 64)
+		? sieve_sort_64(a, n, result)
 		: sieve_sort_omp(a, n, result, depth, omp_depth)
 		;
 }
-
 
 bool sieve_sort_avx2(uint32_t** pa, size_t n, int omp_depth)
 {
 	bool done = false;
 	//max(n)==256P (2^60)
-	if (pa == nullptr || *pa == nullptr /*|| n > _256P*/)
+	if (pa == nullptr || *pa == nullptr)
 		return false;
 	else if (n == 0)
 		return true;
@@ -473,7 +509,7 @@ bool sieve_sort_avx2(uint32_t** pa, size_t n, int omp_depth)
 			done = sieve_sort_core(*pa, n, result, max_depth, omp_depth);
 			if (max_depth >= 3 && ((max_depth & 1) == 0)) {
 				std::swap(*pa, result);
-			}
+			} 
 			delete[] result;
 		}
 	}

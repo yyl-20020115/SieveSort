@@ -8,9 +8,11 @@ static void short_tests_avx512() {
 		for (int i = 0; i < 8; i++) {
 			compare64x8[i] = result64x8[i] = generate_random_64();
 		}
+#ifdef ENABLE_AVX_512
+
 		sieve_sort8_64_direct(_mm512_loadu_epi64(result64x8), result64x8);
 		//sieve_sort64x8_loop(_mm512_loadu_epi64(result64x8), result64x8);
-
+#endif
 		std::sort(compare64x8, compare64x8 + 8);
 		bool ex = std::equal(compare64x8, result64x8 + 16, compare64x8);
 		if (!ex)
@@ -27,8 +29,12 @@ static void short_tests_avx512() {
 		for (int i = 0; i < 16; i++) {
 			original32x16[i] = compare32x16[i] = result32x16[i] = generate_random_32(32);
 		}
-		__m512i t = sieve_sort16_32_direct(_mm512_loadu_epi32(result32x16), result32x16);
-		__m512i r = sieve_sort16_32_loop(_mm512_loadu_epi32(result32x16), result32x16);
+#ifdef ENABLE_AVX_512
+		__m512i t = { 0 };
+		t = sieve_sort16_32_direct(_mm512_loadu_epi32(result32x16), result32x16);
+		__m512i r = { 0 };
+		r = sieve_sort16_32_loop(_mm512_loadu_epi32(result32x16), result32x16);
+#endif
 		//_mm512_storeu_epi32(result32x16, r);
 		std::sort(compare32x16, compare32x16 + 16);
 		bool ex = std::equal(result32x16, result32x16 + 16, compare32x16);
@@ -57,7 +63,9 @@ static void long_test_avx512(const size_t count = 256, const int max_repeats = 1
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
+#ifdef ENABLE_AVX_512
 		sieve_sort_avx512(&results_sieve[c], count, (use_omp ? 32 : -1));
+#endif
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
@@ -121,7 +129,7 @@ static void short_tests_avx2() {
 	}
 	std::cout << "32 pass" << std::endl;
 }
-static void long_test_avx2(const size_t count = 128, const int max_repeats = 1, const int use_omp = 0) {
+static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, const int use_omp = 0) {
 	uint32_t** results_sieve = new uint32_t * [max_repeats];
 	uint32_t** results_stdst = new uint32_t * [max_repeats];
 #pragma omp parallel for
@@ -138,7 +146,15 @@ static void long_test_avx2(const size_t count = 128, const int max_repeats = 1, 
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
+#if 1
 		sieve_sort_avx2(&results_sieve[c], count, (use_omp ? 32 : -1));
+#else
+		uint32_t* result = new uint32_t[count];
+		memset(result, 0, sizeof(uint32_t) * count);
+		sieve_sort_64(results_sieve[c], count, result);
+		memcpy(results_sieve[c], result, sizeof(uint32_t) * count);
+		delete[] result;
+#endif
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
@@ -176,11 +192,11 @@ static void long_test_avx2(const size_t count = 128, const int max_repeats = 1, 
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx2(size_t start = 1ULL << 7, size_t end = 1ULL << 31) {
+static void long_tests_avx2(size_t start = 1ULL << 6, size_t end = 1ULL << 6+3) {
 	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
-		long_test_avx2(i, 1, 1);
+		long_test_avx2(i, 1, 0);
 	}
 }
 

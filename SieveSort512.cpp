@@ -334,7 +334,8 @@ static __forceinline int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, _
 	return count;
 }
 
-static bool sieve_sort_16(uint32_t* a, size_t n, uint32_t* result) {
+
+bool sieve_sort_16(uint32_t* a, size_t n, uint32_t* result) {
 #ifdef USE_STD_SORT
 	std::sort(a, a + n);
 	memcpy(result, a, n * sizeof(uint32_t));
@@ -365,7 +366,7 @@ static bool sieve_sort_16(uint32_t* a, size_t n, uint32_t* result) {
 	}
 #endif
 }
-static bool sieve_sort_256(uint32_t* a/*[_256]*/, size_t n, uint32_t* result) {
+bool sieve_sort_256(uint32_t* a, size_t n, uint32_t* result) {
 #ifdef USE_STD_SORT
 	std::sort(a, a + n);
 	memcpy(result, a, n * sizeof(uint32_t));
@@ -460,6 +461,7 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 			for (int j = 0; j < pc; j++)
 				destination[i++] = _min;
 		}
+		return true;
 	}
 	else if (stride <= extreme_large_stride_threshold) {
 		static const __m256i _zero = _mm256_setzero_si256();
