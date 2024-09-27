@@ -328,8 +328,7 @@ static __forceinline int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, _
 		__m512i _mask_mines = _mm512_cvtepu16_epi32(__mask_mines);
 		__m512i _masks = _mm512_cvtepu16_epi32(_mm256_loadu_epi16(masks));
 		_masks = _mm512_mask_andnot_epi32(_masks, found_mask, _mask_mines, _masks);
-		_all_masks &= ~_mm512_cmpeq_epu32_mask(
-			_masks, zero);
+		_all_masks &= ~_mm512_cmpeq_epu32_mask(_masks, zero);
 		_mm256_storeu_epi16(masks, _mm512_cvtepi32_epi16(_masks));
 	}
 	return count;
