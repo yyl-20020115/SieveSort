@@ -112,7 +112,6 @@ static void long_tests_avx512(size_t start = 1ULL << 16, size_t end = 1ULL << 20
 }
 static void short_tests_avx2() {
 	const int max_retries = 100000;
-
 	uint32_t original[8] = { 0 };
 	uint32_t result[8] = { 0 };
 	uint32_t compare[8] = { 0 };

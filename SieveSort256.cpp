@@ -31,28 +31,28 @@ static const __m256i ones64 = _mm256_set1_epi64x(1);
 static __forceinline short _mm256_cmpge_epi32_popcnt(__m256i a, __m256i b) {
 	__m256i result = _mm256_or_si256(_mm256_cmpgt_epi32(a, b), _mm256_cmpeq_epi32(a, b));
 	short c =
-		+(_mm256_extract_epi32(result, 0) != 0)
-		+ (_mm256_extract_epi32(result, 1) != 0)
-		+ (_mm256_extract_epi32(result, 2) != 0)
-		+ (_mm256_extract_epi32(result, 3) != 0)
-		+ (_mm256_extract_epi32(result, 4) != 0)
-		+ (_mm256_extract_epi32(result, 5) != 0)
-		+ (_mm256_extract_epi32(result, 6) != 0)
-		+ (_mm256_extract_epi32(result, 7) != 0)
+		+ ((result.m256i_u32[0]) != 0)
+		+ ((result.m256i_u32[1]) != 0)
+		+ ((result.m256i_u32[2]) != 0)
+		+ ((result.m256i_u32[3]) != 0)
+		+ ((result.m256i_u32[4]) != 0)
+		+ ((result.m256i_u32[5]) != 0)
+		+ ((result.m256i_u32[6]) != 0)
+		+ ((result.m256i_u32[7]) != 0)
 		;
 	return c;
 }
 static __forceinline short _mm256_cmple_epi32_popcnt(__m256i a, __m256i b) {
 	__m256i result = _mm256_cmpgt_epi32(b, a);
 	short c = 8 - (
-		+(_mm256_extract_epi32(result, 0) != 0)
-		+ (_mm256_extract_epi32(result, 1) != 0)
-		+ (_mm256_extract_epi32(result, 2) != 0)
-		+ (_mm256_extract_epi32(result, 3) != 0)
-		+ (_mm256_extract_epi32(result, 4) != 0)
-		+ (_mm256_extract_epi32(result, 5) != 0)
-		+ (_mm256_extract_epi32(result, 6) != 0)
-		+ (_mm256_extract_epi32(result, 7) != 0)
+		+ ((result.m256i_u32[0]) != 0)
+		+ ((result.m256i_u32[1]) != 0)
+		+ ((result.m256i_u32[2]) != 0)
+		+ ((result.m256i_u32[3]) != 0)
+		+ ((result.m256i_u32[4]) != 0)
+		+ ((result.m256i_u32[5]) != 0)
+		+ ((result.m256i_u32[6]) != 0)
+		+ ((result.m256i_u32[7]) != 0)
 		);
 	return c;
 }
@@ -389,15 +389,15 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		__mmask8 _mask_min = 0;
 		while (mask != 0 && i < n) {
 			__m256i vmask = _mm256_setr_epi32(
-				(((mask & (1 << 7))!=0) ? -1 : 0),
-				(((mask & (1 << 6))!=0) ? -1 : 0),
-				(((mask & (1 << 5))!=0) ? -1 : 0),
-				(((mask & (1 << 4))!=0) ? -1 : 0),
-				(((mask & (1 << 3))!=0) ? -1 : 0),
-				(((mask & (1 << 2))!=0) ? -1 : 0),
-				(((mask & (1 << 1))!=0) ? -1 : 0),
-				(((mask & (1 << 0))!=0) ? -1 : 0)
-				);
+				(((mask & (1 << 7)) != 0) ? -1 : 0),
+				(((mask & (1 << 6)) != 0) ? -1 : 0),
+				(((mask & (1 << 5)) != 0) ? -1 : 0),
+				(((mask & (1 << 4)) != 0) ? -1 : 0),
+				(((mask & (1 << 3)) != 0) ? -1 : 0),
+				(((mask & (1 << 2)) != 0) ? -1 : 0),
+				(((mask & (1 << 1)) != 0) ? -1 : 0),
+				(((mask & (1 << 0)) != 0) ? -1 : 0)
+			);
 			__m256i values = _mm256_mask_i32gather_epi32(
 				_zero, (int*)source, idx, vmask, sizeof(uint32_t));
 			if (!sieve_get_min(mask, values, _min, _mask_min)) break;
@@ -490,11 +490,8 @@ bool sieve_sort_avx2(uint32_t** pa, size_t n, int omp_depth)
 	//max(n)==256P (2^60)
 	if (pa == nullptr || *pa == nullptr)
 		return false;
-	else if (n == 0)
+	else if (n <= 1)
 		return true;
-	else if (n == 1) {
-		return true;
-	}
 	else if (n == 2) {
 		uint32_t a0 = *(*pa + 0);
 		uint32_t a1 = *(*pa + 1);
@@ -509,7 +506,7 @@ bool sieve_sort_avx2(uint32_t** pa, size_t n, int omp_depth)
 			done = sieve_sort_core(*pa, n, result, max_depth, omp_depth);
 			if (max_depth >= 3 && ((max_depth & 1) == 0)) {
 				std::swap(*pa, result);
-			} 
+			}
 			delete[] result;
 		}
 	}
