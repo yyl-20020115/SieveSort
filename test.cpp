@@ -145,15 +145,7 @@ static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, c
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
-#if 1
 		sieve_sort_avx2(&results_sieve[c], count, (use_omp ? 32 : -1));
-#else
-		uint32_t* result = new uint32_t[count];
-		memset(result, 0, sizeof(uint32_t) * count);
-		sieve_sort_64(results_sieve[c], count, result);
-		memcpy(results_sieve[c], result, sizeof(uint32_t) * count);
-		delete[] result;
-#endif
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
@@ -191,7 +183,7 @@ static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, c
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx2(size_t start = 67, size_t end = 1ULL << 6+3) {
+static void long_tests_avx2(size_t start = 256, size_t end = 1ULL << 6+3) {
 	for (size_t i = start; i <= end; i+=3) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;

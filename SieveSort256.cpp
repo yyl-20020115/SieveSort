@@ -406,14 +406,14 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		__mmask8 _mask_min = 0;
 		while (mask != 0 && i < n) {
 			__m256i vmask = _mm256_setr_epi32(
-				(((mask & (1 << 7)) != 0) ? -1 : 0),
-				(((mask & (1 << 6)) != 0) ? -1 : 0),
-				(((mask & (1 << 5)) != 0) ? -1 : 0),
-				(((mask & (1 << 4)) != 0) ? -1 : 0),
-				(((mask & (1 << 3)) != 0) ? -1 : 0),
-				(((mask & (1 << 2)) != 0) ? -1 : 0),
+				(((mask & (1 << 0)) != 0) ? -1 : 0),
 				(((mask & (1 << 1)) != 0) ? -1 : 0),
-				(((mask & (1 << 0)) != 0) ? -1 : 0)
+				(((mask & (1 << 2)) != 0) ? -1 : 0),
+				(((mask & (1 << 3)) != 0) ? -1 : 0),
+				(((mask & (1 << 4)) != 0) ? -1 : 0),
+				(((mask & (1 << 5)) != 0) ? -1 : 0),
+				(((mask & (1 << 6)) != 0) ? -1 : 0),
+				(((mask & (1 << 7)) != 0) ? -1 : 0)
 			);
 			__m256i values = _mm256_mask_i32gather_epi32(
 				_zero, (int*)source, idx, vmask, sizeof(uint32_t));
@@ -489,7 +489,7 @@ static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int depth, i
 				depth - 1, omp_depth - 1);
 		}
 	}
-	if (depth >= 3 && ((depth - 2) & 1) == 1) {
+	if (depth >= 4 && ((depth - 3) & 1) == 1) {
 		std::swap(result, a);
 	}
 	return sieve_collect(n, loops, stride, reminder, mask, result, a);
@@ -521,7 +521,7 @@ bool sieve_sort_avx2(uint32_t** pa, size_t n, int omp_depth)
 		if (result != nullptr) {
 			int max_depth = get_depth(n);
 			done = sieve_sort_core(*pa, n, result, max_depth, omp_depth);
-			if (max_depth >= 3 && ((max_depth & 1) == 0)) {
+			if (max_depth >= 4 && ((max_depth & 1) == 0)) {
 				std::swap(*pa, result);
 			}
 			delete[] result;
