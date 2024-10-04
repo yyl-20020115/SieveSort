@@ -356,19 +356,26 @@ bool sieve_sort_64(uint32_t* a/*[64]*/, size_t n, uint32_t* result) {
 }
 // xxx/xxx/xxx 
 static __forceinline int get_depth(size_t n) {
-	int top_bits = get_top_bit_index(n);
-	int all_bits = __popcnt64(n) == 1
-		? (top_bits - 1)
-		: top_bits
-		;
-	return ((all_bits / 3) + ((all_bits % 3) != 0));
+	int c = 0;
+	for (int t = 0; t < 22; t+=3) {
+		n >>= 3;
+		c++;
+		if (n == 0ULL) break;
+	}
+	return c;
 }
 static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask8& mask, int min_bits = 6) {
 	if (n < ((1ULL) << min_bits)) return false;
 	int depths = get_depth(n);
 	int max_bits = depths * 3;
 	stride = (1ULL) << (max_bits - 3);
-	reminder = n & (~((~0ULL) << (max_bits - 3)));
+	if (stride == n) {
+		stride = n >> 3;
+		reminder = 0;
+	}
+	else {
+		reminder = n & (~((~0ULL) << (max_bits - 3)));
+	}
 	loops = (n - reminder) / stride + (reminder > 0);
 	mask = ~((~0U) << (loops));
 	return true;
