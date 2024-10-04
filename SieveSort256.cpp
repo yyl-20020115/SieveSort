@@ -354,20 +354,19 @@ bool sieve_sort_64(uint32_t* a/*[64]*/, size_t n, uint32_t* result) {
 	}
 #endif
 }
-
+// xxx/xxx/xxx 
 static __forceinline int get_depth(size_t n) {
 	int top_bits = get_top_bit_index(n);
-	int nb_count = (int)__popcnt64(n);
-	int all_bits = nb_count == 1
+	int all_bits = __popcnt64(n) == 1
 		? (top_bits - 1)
-		: ((top_bits & ~0x3) == top_bits
-			? top_bits
-			: (top_bits + ((n - ((n >> 3) << 3)) != 0ULL)));
+		: top_bits
+		;
 	return ((all_bits / 3) + ((all_bits % 3) != 0));
 }
 static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask8& mask, int min_bits = 6) {
 	if (n < ((1ULL) << min_bits)) return false;
-	int max_bits = get_depth(n) * 3;
+	int depths = get_depth(n);
+	int max_bits = depths * 3;
 	stride = (1ULL) << (max_bits - 3);
 	reminder = n & (~((~0ULL) << (max_bits - 3)));
 	loops = (n - reminder) / stride + (reminder > 0);
@@ -444,7 +443,19 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		__mmask8 _mask_min = 0;
 
 		while (mask != 0 && i < n) {
-			__m128i vmask = __zero;//_mask_low_
+			//__m128i vmask = __zero;//_mask_low_
+			__m128i vmask = _mm_setr_epi32(
+				(((mask & (1 << 0)) != 0) ? -1 : 0),
+				(((mask & (1 << 1)) != 0) ? -1 : 0),
+				(((mask & (1 << 2)) != 0) ? -1 : 0),
+				(((mask & (1 << 3)) != 0) ? -1 : 0)
+				//,
+				//(((mask & (1 << 4)) != 0) ? -1 : 0),
+				//(((mask & (1 << 5)) != 0) ? -1 : 0),
+				//(((mask & (1 << 6)) != 0) ? -1 : 0),
+				//(((mask & (1 << 7)) != 0) ? -1 : 0)
+			);
+
 			_mask_low_ = (__mmask8)(mask & 0xff);
 			__m128i values_low_ = _mm256_mask_i64gather_epi32(
 				__zero, (int*)source, _idx_low_, vmask, sizeof(uint32_t));

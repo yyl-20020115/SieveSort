@@ -183,7 +183,7 @@ static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, c
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx2(size_t start = 256, size_t end = 1ULL << 6+3) {
+static void long_tests_avx2(size_t start = 1, size_t end = 1ULL << 6+6) {
 	for (size_t i = start; i <= end; i+=3) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;

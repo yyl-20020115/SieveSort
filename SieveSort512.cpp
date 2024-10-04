@@ -415,7 +415,7 @@ bool sieve_sort_256(uint32_t* a, size_t n, uint32_t* result) {
 	}
 #endif
 }
-
+// xxxx/xxxx/xxxx/
 static __forceinline int get_depth(size_t n) {
 	int top_bits = get_top_bit_index(n);
 	int nb_count = (int)__popcnt64(n);
