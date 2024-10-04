@@ -41,9 +41,9 @@ static __forceinline bool sieve_get_min_max(__mmask16 mask, __m512i a, uint32_t&
 }
 static __forceinline bool sieve_get_min_max(__mmask8 mask, __m512i a, uint64_t& _min, uint64_t& _max, __mmask8& _mask_min, __mmask8& _mask_max) {
 	if (mask != 0) {
-		_mask_max = _mm512_mask_cmpeq_epi64_mask(mask, a, _mm512_set1_epi64(
+		_mask_max = _mm512_mask_cmpeq_epu64_mask(mask, a, _mm512_set1_epi64(
 			_max = _mm512_mask_reduce_max_epu64(mask, a)));
-		_mask_min = _mm512_mask_cmpeq_epi64_mask(mask & (~_mask_max), a, _mm512_set1_epi64(
+		_mask_min = _mm512_mask_cmpeq_epu64_mask(mask & (~_mask_max), a, _mm512_set1_epi64(
 			_min = _mm512_mask_reduce_min_epu64(mask & (~_mask_max), a)));
 		return true;
 	}

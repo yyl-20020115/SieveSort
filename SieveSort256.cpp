@@ -28,31 +28,48 @@ static const __m256i ones = _mm256_set1_epi32(1);
 static const __m256i mones = _mm256_set1_epi32(-1);
 static const __m256i ones64 = _mm256_set1_epi64x(1);
 
-static __forceinline short _mm256_cmpge_epi32_popcnt(__m256i a, __m256i b) {
-	__m256i result = _mm256_or_si256(_mm256_cmpgt_epi32(a, b), _mm256_cmpeq_epi32(a, b));
-	short c =
-		+ ((result.m256i_u32[0]) != 0)
-		+ ((result.m256i_u32[1]) != 0)
-		+ ((result.m256i_u32[2]) != 0)
-		+ ((result.m256i_u32[3]) != 0)
-		+ ((result.m256i_u32[4]) != 0)
-		+ ((result.m256i_u32[5]) != 0)
-		+ ((result.m256i_u32[6]) != 0)
-		+ ((result.m256i_u32[7]) != 0)
-		;
+
+static __forceinline short _mm256_cmpge_epu32_popcnt(__m256i a, __m256i b) {
+	__m256i ah = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(a, 1));
+	__m256i al = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(a, 0));
+
+	__m256i bh = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(b, 1));
+	__m256i bl = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(b, 0));
+
+	__m256i rh = _mm256_or_si256(_mm256_cmpgt_epi64(ah, bh), _mm256_cmpeq_epi64(ah,bh));
+	__m256i rl = _mm256_or_si256(_mm256_cmpgt_epi64(al, bl), _mm256_cmpeq_epi64(al,bl));
+
+	short c = (
+		+ ((rh.m256i_u64[0]) != 0)
+		+ ((rh.m256i_u64[1]) != 0)
+		+ ((rh.m256i_u64[2]) != 0)
+		+ ((rh.m256i_u64[3]) != 0)
+		+ ((rl.m256i_u64[0]) != 0)
+		+ ((rl.m256i_u64[1]) != 0)
+		+ ((rl.m256i_u64[2]) != 0)
+		+ ((rl.m256i_u64[3]) != 0)
+		);
 	return c;
 }
-static __forceinline short _mm256_cmple_epi32_popcnt(__m256i a, __m256i b) {
-	__m256i result = _mm256_cmpgt_epi32(b, a);
+static __forceinline short _mm256_cmple_epu32_popcnt(__m256i a, __m256i b) {
+	__m256i ah = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(a, 1));
+	__m256i al = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(a, 0));
+
+	__m256i bh = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(b, 1));
+	__m256i bl = _mm256_cvtepu32_epi64(_mm256_extracti128_si256(b, 0));
+
+	__m256i rh = _mm256_cmpgt_epi64(ah, bh);
+	__m256i rl = _mm256_cmpgt_epi64(al, bl);
+
 	short c = 8 - (
-		+ ((result.m256i_u32[0]) != 0)
-		+ ((result.m256i_u32[1]) != 0)
-		+ ((result.m256i_u32[2]) != 0)
-		+ ((result.m256i_u32[3]) != 0)
-		+ ((result.m256i_u32[4]) != 0)
-		+ ((result.m256i_u32[5]) != 0)
-		+ ((result.m256i_u32[6]) != 0)
-		+ ((result.m256i_u32[7]) != 0)
+		+ ((rh.m256i_u64[0]) != 0)
+		+ ((rh.m256i_u64[1]) != 0)
+		+ ((rh.m256i_u64[2]) != 0)
+		+ ((rh.m256i_u64[3]) != 0)
+		+ ((rl.m256i_u64[0]) != 0)
+		+ ((rl.m256i_u64[1]) != 0)
+		+ ((rl.m256i_u64[2]) != 0)
+		+ ((rl.m256i_u64[3]) != 0)
 		);
 	return c;
 }
@@ -72,14 +89,14 @@ static __forceinline __mmask8 _mm256_mask_cmpeq_epi32_mask_(__mmask8 mask, __m25
 static __forceinline bool sieve_get_min(__mmask8 mask, __m256i a, uint32_t& _min, __mmask8& _mask_min) {
 	if (mask == 0) return false;
 	__m128i counts = _mm_setr_epi16(
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[0]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[1]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[2]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[3]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[4]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[5]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[6]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[0]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[1]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[2]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[3]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[4]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[5]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[6]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
 	);
 	counts.m128i_u16[0] = ((mask & (1 << 0)) != 0) ? counts.m128i_u16[0] : 0xffff;
 	counts.m128i_u16[1] = ((mask & (1 << 1)) != 0) ? counts.m128i_u16[1] : 0xffff;
@@ -98,14 +115,14 @@ static __forceinline bool sieve_get_min(__mmask8 mask, __m256i a, uint32_t& _min
 static __forceinline bool sieve_get_min_max(__mmask8 mask, __m256i a, uint32_t& _min, uint32_t& _max, __mmask8& _mask_min, __mmask8& _mask_max) {
 	if (mask == 0) return false;
 	__m128i counts = _mm_setr_epi16(
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[0]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[1]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[2]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[3]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[4]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[5]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[6]), a),
-		_mm256_cmpge_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[0]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[1]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[2]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[3]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[4]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[5]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[6]), a),
+		_mm256_cmpge_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
 	);
 
 	counts.m128i_u16[0] = (mask & (1 << 0)) ? counts.m128i_u16[0] : 0xffff;
@@ -124,14 +141,14 @@ static __forceinline bool sieve_get_min_max(__mmask8 mask, __m256i a, uint32_t& 
 
 	mask &= ~(_mask_min);
 	counts = _mm_setr_epi16(
-		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[0]), a),
-		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[1]), a),
-		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[2]), a),
-		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[3]), a),
-		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[4]), a),
-		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[5]), a),
-		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[6]), a),
-		8 - _mm256_cmple_epi32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
+		_mm256_cmple_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[0]), a),
+		_mm256_cmple_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[1]), a),
+		_mm256_cmple_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[2]), a),
+		_mm256_cmple_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[3]), a),
+		_mm256_cmple_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[4]), a),
+		_mm256_cmple_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[5]), a),
+		_mm256_cmple_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[6]), a),
+		_mm256_cmple_epu32_popcnt(_mm256_set1_epi32(a.m256i_u32[7]), a)
 	);
 
 	counts.m128i_u16[0] = (mask & (1 << 0)) ? counts.m128i_u16[0] : 0xffff;

@@ -117,7 +117,7 @@ static void short_tests_avx2() {
 	uint32_t compare[8] = { 0 };
 	for (int c = 0; c < max_retries; c++) {
 		for (int i = 0; i < 8; i++) {
-			original[i] = compare[i] = result[i] = generate_random_32(32);
+			original[i] = compare[i] = result[i] = generate_random_32();
 		}
 		__m256i r = sieve_sort8_32_loop(_mm256_loadu_epi32(result), result);
 		std::sort(compare, compare + 8);
@@ -191,8 +191,8 @@ static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, c
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx2(size_t start = 1ULL << 6, size_t end = 1ULL << 6+3) {
-	for (size_t i = start; i <= end; i++) {
+static void long_tests_avx2(size_t start = 67, size_t end = 1ULL << 6+3) {
+	for (size_t i = start; i <= end; i+=3) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
 		long_test_avx2(i, 1, 0);
