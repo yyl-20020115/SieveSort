@@ -1,4 +1,5 @@
 #include "SieveSort.h"
+#include <intrin.h>
 
 static void short_tests_avx512() {
 	const int max_retries = 100;
@@ -9,13 +10,11 @@ static void short_tests_avx512() {
 		for (int i = 0; i < count; i++) {
 			compare64x8[i] = result64x8[i] = generate_random_64();
 		}
-#ifdef ENABLE_AVX_512
 
 		sieve_sort8_64_direct(_mm512_loadu_epi64(result64x8), result64x8);
 		//sieve_sort64x8_loop(_mm512_loadu_epi64(result64x8), result64x8);
-#endif
 		std::sort(compare64x8, compare64x8 + count);
-		bool ex = std::equal(compare64x8, result64x8 + count, compare64x8);
+		bool ex = std::equal(compare64x8, compare64x8 + count, result64x8);
 		if (!ex)
 		{
 			std::cout << "failed" << std::endl;
@@ -31,12 +30,10 @@ static void short_tests_avx512() {
 		for (int i = 0; i < count2; i++) {
 			original32x16[i] = compare32x16[i] = result32x16[i] = generate_random_32();
 		}
-#ifdef ENABLE_AVX_512
 		__m512i t = { 0 };
 		t = sieve_sort16_32_direct(_mm512_loadu_epi32(result32x16), result32x16);
 		__m512i r = { 0 };
 		r = sieve_sort16_32_loop(_mm512_loadu_epi32(result32x16), result32x16);
-#endif
 		//_mm512_storeu_epi32(result32x16, r);
 		std::sort(compare32x16, compare32x16 + count2);
 		bool ex = std::equal(result32x16, result32x16 + count2, compare32x16);
@@ -65,9 +62,7 @@ static void long_test_avx512(const size_t count = 256, const int max_repeats = 1
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
-#ifdef ENABLE_AVX_512
 		sieve_sort_avx512(&results_sieve[c], count, (use_omp ? 32 : -1));
-#endif
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
@@ -140,8 +135,8 @@ static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp =
 		results_sieve[c] = new uint32_t[count];
 		results_stdst[c] = new uint32_t[count];
 		for (size_t i = 0; i < count; i++) {
-			results_stdst[c][i] 
-				= results_sieve[c][i] 
+			results_stdst[c][i]
+				= results_sieve[c][i]
 				= generate_random_32();
 		}
 	}
@@ -191,9 +186,9 @@ static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp =
 }
 static void long_tests_avx2(size_t start = 12, size_t end = 28) {
 	for (size_t i = start; i <= end; i++) {
-		std::cout << std::endl; 
+		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
-		long_test_avx2((1ULL<<i), 1, 1);
+		long_test_avx2((1ULL << i), 1, 1);
 	}
 }
 
@@ -205,14 +200,25 @@ static void test256() {
 static void test512()
 {
 	short_tests_avx512();
-	long_tests_avx512(); 
+	long_tests_avx512();
+}
+
+bool has_avx512() {
+
+	int regs[4] = { 16,0,0,0 };
+
+	__cpuid(regs, 0x7); // Call CPUID with feature identifier
+
+	return (regs[1] & (1 << 16)) != 0;
+
 }
 
 int main(int argc, char* argv[])
 {
-#if ENABLE_AVX_512
-	test512();
-#endif
+	if (has_avx512()) {
+		test512();
+		argc = 0;
+	}
 	test256();
 	return 0;
 }
