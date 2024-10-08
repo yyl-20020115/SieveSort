@@ -142,7 +142,7 @@ static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp =
 		for (size_t i = 0; i < count; i++) {
 			results_stdst[c][i] 
 				= results_sieve[c][i] 
-				= generate_random_32(count);
+				= generate_random_32();
 		}
 	}
 	//ok for 16x
@@ -189,7 +189,7 @@ static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp =
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx2(size_t start = 12, size_t end = 24) {
+static void long_tests_avx2(size_t start = 12, size_t end = 28) {
 	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl; 
 		std::cout << "i=" << i << std::endl;

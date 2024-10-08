@@ -453,7 +453,6 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		}
 		return true;
 	}
-#if 1
 	else if (stride <= extreme_large_stride_threshold) {
 		__m256i _idx_low_ = _zero;
 		__m256i _top_low_ = _zero;
@@ -485,7 +484,7 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		__mmask8 _mask_min_high = 0;
 
 		_mask_low_ = (__mmask8)(mask & 0xf);
-		_mask_high = (__mmask8)((mask & 0xf) >> 4);
+		_mask_high = (__mmask8)((mask & 0xf0) >> 4);
 
 		while (mask != 0 && i < n) {
 			__m128i vmask_low_ = _mm_setr_epi32(
@@ -520,8 +519,8 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 			else if (ml && !mh) {
 				_min = _min_low_;
 				_idx_low_ = _mm256_mask_inc64(_mask_min_low_, _idx_low_);
-				_mask_low_ &= _mm256_mask_cmpeq_epi64_mask_(_mask_min_low_, _idx_low_, _top_low_);
-				mask &= ~((__mmask16)_mask_low_);
+				_mask_low_ &= ~_mm256_mask_cmpeq_epi64_mask_(_mask_min_low_, _idx_low_, _top_low_);
+				mask = ((__mmask16)_mask_low_);
 				pc = __popcnt16(_mask_min_low_);
 				for (int j = 0; j < pc; j++)
 					destination[i++] = _min;
@@ -529,8 +528,8 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 			else if (!ml && mh) {
 				_min = _min_high;
 				_idx_high = _mm256_mask_inc64(_mask_min_high, _idx_high);
-				_mask_high &= _mm256_mask_cmpeq_epi64_mask_(_mask_min_high, _idx_high, _top_high);
-				mask &= ~((__mmask16)(_mask_high << 4));
+				_mask_high &= ~_mm256_mask_cmpeq_epi64_mask_(_mask_min_high, _idx_high, _top_high);
+				mask = ((__mmask16)(_mask_high << 4));
 				pc = __popcnt16(_mask_min_high);
 				for (int j = 0; j < pc; j++)
 					destination[i++] = _min;
@@ -540,10 +539,10 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 			{
 				_min = _min_low_;
 				_idx_low_ = _mm256_mask_inc64(_mask_min_low_, _idx_low_);
-				_mask_low_ &= _mm256_mask_cmpeq_epi64_mask_(_mask_min_low_, _idx_low_, _top_low_);
+				_mask_low_ &= ~_mm256_mask_cmpeq_epi64_mask_(_mask_min_low_, _idx_low_, _top_low_);
 				_idx_high = _mm256_mask_inc64(_mask_min_high, _idx_high);
-				_mask_high &= _mm256_mask_cmpeq_epi64_mask_(_mask_min_high, _idx_high, _top_high);
-				mask &= ~((__mmask16)_mask_low_ | (__mmask16)(_mask_high << 4));
+				_mask_high &= ~_mm256_mask_cmpeq_epi64_mask_(_mask_min_high, _idx_high, _top_high);
+				mask = ((__mmask16)_mask_low_ | (__mmask16)(_mask_high << 4));
 				pc = __popcnt16(_mask_min_low_) + __popcnt16(_mask_min_high);
 				for (int j = 0; j < pc; j++)
 					destination[i++] = _min;
@@ -551,8 +550,8 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 			else if (_min_low_ < _min_high) {
 				_min = _min_low_;
 				_idx_low_ = _mm256_mask_inc64(_mask_min_low_, _idx_low_);
-				_mask_low_ &= _mm256_mask_cmpeq_epi64_mask_(_mask_min_low_, _idx_low_, _top_low_);
-				mask &= ~((__mmask16)_mask_low_);
+				_mask_low_ &= ~_mm256_mask_cmpeq_epi64_mask_(_mask_min_low_, _idx_low_, _top_low_);
+				mask = (mask & 0xf0) | ((__mmask16)_mask_low_);
 				pc = __popcnt16(_mask_min_low_);
 				for (int j = 0; j < pc; j++)
 					destination[i++] = _min;
@@ -560,8 +559,8 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 			else {
 				_min = _min_high;
 				_idx_high = _mm256_mask_inc64(_mask_min_high, _idx_high);
-				_mask_high &= _mm256_mask_cmpeq_epi64_mask_(_mask_min_high, _idx_high, _top_high);
-				mask &= ~((__mmask16)(_mask_high << 4));
+				_mask_high &= ~_mm256_mask_cmpeq_epi64_mask_(_mask_min_high, _idx_high, _top_high);
+				mask = (mask & 0xf) | ((__mmask16)(_mask_high << 4));
 				pc = __popcnt16(_mask_min_high);
 				for (int j = 0; j < pc; j++)
 					destination[i++] = _min;
@@ -569,7 +568,6 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		}
 		return true;
 	}
-#endif
 	return false;
 }
 
@@ -578,10 +576,6 @@ static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_dept
 	size_t loops = 0, stride = 0, reminder = 0;
 	__mmask8 mask = 0;
 	if (!get_config(n, loops, stride, reminder, mask)) return false;
-
-	//uint32_t* sa = new uint32_t[n];
-	//memcpy(sa, a, sizeof(uint32_t) * n);
-	//std::sort(sa, sa + n);
 
 	if (omp_depth > 0 && depth >= 2) {
 #pragma omp parallel for
@@ -606,14 +600,7 @@ static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_dept
 	if ((dd & 1) == 1) {
 		std::swap(result, a);
 	}
-	bool done = sieve_collect(n, loops, stride, reminder, mask, result, a);
-
-	//bool eq = std::equal(a, a + n, sa);
-	//if (!eq) {
-	//	std::cout << "bad" << std::endl;
-	//}
-	//delete[] sa;
-	return done;
+	return sieve_collect(n, loops, stride, reminder, mask, result, a);
 }
 static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth) {
 	return (n <= 64)
