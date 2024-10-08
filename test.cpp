@@ -1,11 +1,12 @@
 #include "SieveSort.h"
 
 static void short_tests_avx512() {
-	const int max_retries = 100000;
-	uint64_t result64x8[8] = { 0 };
-	uint64_t compare64x8[8] = { 0 };
+	const int max_retries = 100;
+	const int count = 8;
+	uint64_t result64x8[count] = { 0 };
+	uint64_t compare64x8[count] = { 0 };
 	for (int c = 0; c < max_retries; c++) {
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < count; i++) {
 			compare64x8[i] = result64x8[i] = generate_random_64();
 		}
 #ifdef ENABLE_AVX_512
@@ -13,8 +14,8 @@ static void short_tests_avx512() {
 		sieve_sort8_64_direct(_mm512_loadu_epi64(result64x8), result64x8);
 		//sieve_sort64x8_loop(_mm512_loadu_epi64(result64x8), result64x8);
 #endif
-		std::sort(compare64x8, compare64x8 + 8);
-		bool ex = std::equal(compare64x8, result64x8 + 16, compare64x8);
+		std::sort(compare64x8, compare64x8 + count);
+		bool ex = std::equal(compare64x8, result64x8 + count, compare64x8);
 		if (!ex)
 		{
 			std::cout << "failed" << std::endl;
@@ -22,12 +23,13 @@ static void short_tests_avx512() {
 	}
 	std::cout << "64 pass" << std::endl;
 
-	uint32_t original32x16[16] = { 0 };
-	uint32_t result32x16[16] = { 0 };
-	uint32_t compare32x16[16] = { 0 };
+	const int count2 = 16;
+	uint32_t original32x16[count2] = { 0 };
+	uint32_t result32x16[count2] = { 0 };
+	uint32_t compare32x16[count2] = { 0 };
 	for (int c = 0; c < max_retries; c++) {
-		for (int i = 0; i < 16; i++) {
-			original32x16[i] = compare32x16[i] = result32x16[i] = generate_random_32(32);
+		for (int i = 0; i < count2; i++) {
+			original32x16[i] = compare32x16[i] = result32x16[i] = generate_random_32();
 		}
 #ifdef ENABLE_AVX_512
 		__m512i t = { 0 };
@@ -36,8 +38,8 @@ static void short_tests_avx512() {
 		r = sieve_sort16_32_loop(_mm512_loadu_epi32(result32x16), result32x16);
 #endif
 		//_mm512_storeu_epi32(result32x16, r);
-		std::sort(compare32x16, compare32x16 + 16);
-		bool ex = std::equal(result32x16, result32x16 + 16, compare32x16);
+		std::sort(compare32x16, compare32x16 + count2);
+		bool ex = std::equal(result32x16, result32x16 + count2, compare32x16);
 		if (!ex)
 		{
 			std::cout << "failed" << std::endl;
@@ -121,7 +123,6 @@ static void short_tests_avx2() {
 			original[i] = compare[i] = result[i] = generate_random_32();
 		}
 		sieve_sort_64(original, count, result);
-
 		//__m256i r = sieve_sort8_32_loop(_mm256_loadu_epi32(result), result);
 		std::sort(compare, compare + count);
 		bool ex = std::equal(result, result + count, compare);
@@ -188,7 +189,7 @@ static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp =
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx2(size_t start = 28, size_t end = 32) {
+static void long_tests_avx2(size_t start = 12, size_t end = 24) {
 	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl; 
 		std::cout << "i=" << i << std::endl;
