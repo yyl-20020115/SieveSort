@@ -366,23 +366,6 @@ bool sieve_sort_64(uint32_t* a/*[64]*/, size_t n, uint32_t* result) {
 	}
 #endif
 }
-// xxx/xxx/xxx 
-static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask8& mask, int min_bits = 6) {
-	if (n < ((1ULL) << min_bits)) return false;
-	int depths = get_depth(n, 3);
-	int max_bits = depths * 3;
-	stride = (1ULL) << (max_bits - 3);
-	if (stride == n) {
-		stride = n >> 3;
-		reminder = 0;
-	}
-	else {
-		reminder = n & (~((~0ULL) << (max_bits - 3)));
-	}
-	loops = (n - reminder) / stride + (reminder > 0);
-	mask = ~((~0U) << (loops));
-	return true;
-}
 static __forceinline __m256i _mm256_mask_inc(__mmask8 k, __m256i a) {
 	return _mm256_add_epi32(a, _mm256_set_epi32(
 		(k & (1 << 7)) ? 1 : 0,
@@ -566,7 +549,7 @@ static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_dep
 static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth) {
 	size_t loops = 0, stride = 0, reminder = 0;
 	__mmask8 mask = 0;
-	if (!get_config(n, loops, stride, reminder, mask)) return false;
+	if (!get_config(n, loops, stride, reminder, mask, 6, 3)) return false;
 
 	if (omp_depth > 0 && depth >= 2) {
 #pragma omp parallel for
@@ -586,9 +569,9 @@ static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_dept
 		}
 	}
 
-	int dd = max_depth - depth;
+	int delta_depth = max_depth - depth;
 
-	if ((dd & 1) == 1) {
+	if ((delta_depth & 1) == 1) {
 		std::swap(result, a);
 	}
 	return sieve_collect(n, loops, stride, reminder, mask, result, a);

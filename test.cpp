@@ -203,7 +203,7 @@ static void test512()
 	long_tests_avx512();
 }
 
-bool has_avx512() {
+static bool has_avx512() {
 
 	int regs[4] = { 16,0,0,0 };
 

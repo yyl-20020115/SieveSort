@@ -30,3 +30,5 @@ __m512i sieve_sort8_64_direct(__m512i a, uint64_t* result);
 bool sieve_sort_avx512(uint32_t* a, size_t n, int omp_depth = 32);
 
 int get_depth(size_t n, int shift);
+bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask16& mask, int min_bits, int shift);
+bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask8& mask, int min_bits, int shift);

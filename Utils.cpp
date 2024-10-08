@@ -26,3 +26,27 @@ int get_depth(size_t n, int shift) {
 	}
 	return c;
 }
+bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask16& mask, int min_bits, int shift) {
+	if (n < ((1ULL) << min_bits)) return false;
+	int depths = get_depth(n, shift);
+	int max_bits = depths * shift;
+	stride = (1ULL) << (max_bits - shift);
+	if (stride == n) {
+		stride = n >> shift;
+		reminder = 0;
+	}
+	else {
+		reminder = n & (~((~0ULL) << (max_bits - shift)));
+	}
+	loops = (n - reminder) / stride + (reminder > 0);
+	mask = ~((~0U) << (loops));
+	return true;
+}
+
+bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask8& mask, int min_bits, int shift)
+{
+	__mmask16 _mask = mask;
+	bool done = get_config(n, loops, stride, reminder, _mask, min_bits, shift);
+	mask = (__mmask8)_mask;
+	return done;
+}
