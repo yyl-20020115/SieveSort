@@ -415,6 +415,7 @@ bool sieve_sort_256(uint32_t* a, size_t n, uint32_t* result) {
 	}
 #endif
 }
+#if 0
 // xxxx/xxxx/xxxx/
 static __forceinline int get_depth(size_t n) {
 	int top_bits = get_top_bit_index(n);
@@ -431,7 +432,33 @@ static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, si
 	mask = ~((~0U) << (loops));
 	return true;
 }
-
+#else
+static __forceinline int get_depth(size_t n) {
+	int c = 0;
+	for (int t = 0; ; t += 4) {
+		n >>= 4;
+		c++;
+		if (n == 0ULL) break;
+	}
+	return c;
+}
+static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask16& mask, int min_bits = 8) {
+	if (n < ((1ULL) << min_bits)) return false;
+	int depths = get_depth(n);
+	int max_bits = depths * 4;
+	stride = (1ULL) << (max_bits - 4);
+	if (stride == n) {
+		stride = n >> 4;
+		reminder = 0;
+	}
+	else {
+		reminder = n & (~((~0ULL) << (max_bits - 4)));
+	}
+	loops = (n - reminder) / stride + (reminder > 0);
+	mask = ~((~0U) << (loops));
+	return true;
+}
+#endif
 static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder, __mmask16 mask,
 	uint32_t* source, uint32_t* destination) {
 	if (n == 0 || loops == 0 || loops > 16 || mask == 0 || source == nullptr || destination == nullptr)
@@ -521,8 +548,8 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 	return false;
 }
 
-static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int depth, int omp_depth);
-static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int depth, int omp_depth) {
+static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth);
+static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth) {
 	size_t loops = 0, stride = 0, reminder = 0;
 	__mmask16 mask = 0;
 	if (!get_config(n, loops, stride, reminder, mask)) return false;
@@ -532,7 +559,7 @@ static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int depth, i
 			sieve_sort_core(a + i * stride,
 				(i == loops - 1 && reminder > 0) ? reminder : stride,
 				result + i * stride,
-				depth - 1, omp_depth - 1);
+				max_depth, depth - 1, omp_depth - 1);
 		}
 	}
 	else {
@@ -540,18 +567,21 @@ static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int depth, i
 			sieve_sort_core(a + i * stride,
 				(i == loops - 1 && reminder > 0) ? reminder : stride,
 				result + i * stride,
-				depth - 1, omp_depth - 1);
+				max_depth, depth - 1, omp_depth - 1);
 		}
 	}
-	if (depth >= 4 && ((depth - 3) & 1) == 1) {
+	int dd = max_depth - depth;
+
+	if ((dd & 1) == 1) {
 		std::swap(result, a);
 	}
+
 	return sieve_collect(n, loops, stride, reminder, mask, result, a);
 }
-static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int depth, int omp_depth) {
+static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth) {
 	return (n <= _256)
 		? sieve_sort_256(a, n, result)
-		: sieve_sort_omp(a, n, result, depth, omp_depth)
+		: sieve_sort_omp(a, n, result, depth, max_depth, omp_depth)
 		;
 }
 
@@ -568,8 +598,8 @@ bool sieve_sort_avx512(uint32_t** pa, size_t n, int omp_depth)
 		return true;
 	}
 	else if (n == 2) {
-		uint32_t a0 = *(*pa+0);
-		uint32_t a1 = *(*pa+1);
+		uint32_t a0 = *(*pa + 0);
+		uint32_t a1 = *(*pa + 1);
 		*(*pa + 0) = std::min(a0, a1);
 		*(*pa + 1) = std::max(a0, a1);
 		return true;
@@ -578,10 +608,10 @@ bool sieve_sort_avx512(uint32_t** pa, size_t n, int omp_depth)
 		uint32_t* result = new uint32_t[n];
 		if (result != nullptr) {
 			int max_depth = get_depth(n);
-			done = sieve_sort_core(*pa, n, result, max_depth, omp_depth);
-			if (max_depth >= 4 && ((max_depth & 1) == 0)) {
-				std::swap(*pa, result);
-			}
+			done = sieve_sort_core(*pa, n, result, max_depth, max_depth, omp_depth);
+			//if (max_depth >= 4 && ((max_depth & 1) == 0)) {
+			//	std::swap(*pa, result);
+			//}
 			delete[] result;
 		}
 	}

@@ -100,11 +100,11 @@ static void long_test_avx512(const size_t count = 256, const int max_repeats = 1
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx512(size_t start = 1ULL << 16, size_t end = 1ULL << 20) {
+static void long_tests_avx512(size_t start = 16, size_t end = 20) {
 	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
-		long_test_avx512(i, 1, 1);
+		long_test_avx512((1ULL<<i), 1, 1);
 	}
 }
 static void short_tests_avx2() {
@@ -217,7 +217,6 @@ int main(int argc, char* argv[])
 {
 	if (has_avx512()) {
 		test512();
-		argc = 0;
 	}
 	test256();
 	return 0;
