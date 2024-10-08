@@ -131,7 +131,7 @@ static void short_tests_avx2() {
 	}
 	std::cout << "32 pass" << std::endl;
 }
-static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp = 0) {
+static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp = 1) {
 	uint32_t** results_sieve = new uint32_t * [max_repeats];
 	uint32_t** results_stdst = new uint32_t * [max_repeats];
 #pragma omp parallel for
@@ -188,11 +188,11 @@ static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp =
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx2(size_t start = 12, size_t end = 24) {
+static void long_tests_avx2(size_t start = 28, size_t end = 32) {
 	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl; 
 		std::cout << "i=" << i << std::endl;
-		long_test_avx2((1ULL<<i), 1, 0);
+		long_test_avx2((1ULL<<i), 1, 1);
 	}
 }
 
