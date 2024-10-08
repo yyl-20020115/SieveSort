@@ -111,24 +111,27 @@ static void long_tests_avx512(size_t start = 1ULL << 16, size_t end = 1ULL << 20
 	}
 }
 static void short_tests_avx2() {
-	const int max_retries = 100000;
-	uint32_t original[8] = { 0 };
-	uint32_t result[8] = { 0 };
-	uint32_t compare[8] = { 0 };
+	const int count = 64;
+	const int max_retries = 1000;
+	uint32_t original[count] = { 0 };
+	uint32_t result[count] = { 0 };
+	uint32_t compare[count] = { 0 };
 	for (int c = 0; c < max_retries; c++) {
-		for (int i = 0; i < 8; i++) {
+		for (int i = 0; i < count; i++) {
 			original[i] = compare[i] = result[i] = generate_random_32();
 		}
-		__m256i r = sieve_sort8_32_loop(_mm256_loadu_epi32(result), result);
-		std::sort(compare, compare + 8);
-		bool ex = std::equal(result, result + 8, compare);
+		sieve_sort_64(original, count, result);
+
+		//__m256i r = sieve_sort8_32_loop(_mm256_loadu_epi32(result), result);
+		std::sort(compare, compare + count);
+		bool ex = std::equal(result, result + count, compare);
 		if (!ex) {
 			std::cout << "failed" << std::endl;
 		}
 	}
 	std::cout << "32 pass" << std::endl;
 }
-static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, const int use_omp = 0) {
+static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp = 0) {
 	uint32_t** results_sieve = new uint32_t * [max_repeats];
 	uint32_t** results_stdst = new uint32_t * [max_repeats];
 #pragma omp parallel for
@@ -141,7 +144,6 @@ static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, c
 				= generate_random_32(count);
 		}
 	}
-
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
@@ -163,9 +165,12 @@ static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, c
 	std::cout << "==================================" << std::endl;
 	//#pragma omp parallel for
 	for (int c = 0; c < max_repeats; c++) {
-		for (int d = 0; d < count; d++) {
-			if (results_sieve[c][d] != results_stdst[c][d]) {
-				std::cout << "found bad value at repeat " << c << " index " << d << std::endl;
+		bool beq = std::equal(results_sieve[c], results_sieve[c] + count, results_stdst[c]);
+		if (!beq) {
+			for (int d = 0; d < count; d++) {
+				if (results_sieve[c][d] != results_stdst[c][d]) {
+					std::cout << "found bad value at repeat " << c << " index " << d << std::endl;
+				}
 			}
 		}
 		delete[] results_sieve[c];
@@ -183,9 +188,9 @@ static void long_test_avx2(const size_t count = 64, const int max_repeats = 1, c
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx2(size_t start = 1, size_t end = 24) {
-	for (size_t i = start; i <= end; i+=6) {
-		std::cout << std::endl;
+static void long_tests_avx2(size_t start = 12, size_t end = 24) {
+	for (size_t i = start; i <= end; i++) {
+		std::cout << std::endl; 
 		std::cout << "i=" << i << std::endl;
 		long_test_avx2((1ULL<<i), 1, 0);
 	}
@@ -199,7 +204,7 @@ static void test256() {
 static void test512()
 {
 	short_tests_avx512();
-	long_tests_avx512();
+	long_tests_avx512(); 
 }
 
 int main(int argc, char* argv[])
