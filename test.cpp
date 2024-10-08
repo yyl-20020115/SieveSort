@@ -55,14 +55,14 @@ static void long_test_avx512(const size_t count = 256, const int max_repeats = 1
 		for (size_t i = 0; i < count; i++) {
 			results_stdst[c][i]
 				= results_sieve[c][i]
-				= generate_random_32(count);
+				= generate_random_32();
 		}
 	}
 
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
-		sieve_sort_avx512(&results_sieve[c], count, (use_omp ? 32 : -1));
+		sieve_sort_avx512(results_sieve[c], count, (use_omp ? 32 : -1));
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();
@@ -143,7 +143,7 @@ static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp =
 	//ok for 16x
 	auto start = std::chrono::high_resolution_clock::now();
 	for (int c = 0; c < max_repeats; c++) {
-		sieve_sort_avx2(&results_sieve[c], count, (use_omp ? 32 : -1));
+		sieve_sort_avx2(results_sieve[c], count, (use_omp ? 32 : -1));
 	}
 
 	auto end = std::chrono::high_resolution_clock::now();

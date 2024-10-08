@@ -367,18 +367,9 @@ bool sieve_sort_64(uint32_t* a/*[64]*/, size_t n, uint32_t* result) {
 #endif
 }
 // xxx/xxx/xxx 
-static __forceinline int get_depth(size_t n) {
-	int c = 0;
-	for (int t = 0; ; t += 3) {
-		n >>= 3;
-		c++;
-		if (n == 0ULL) break;
-	}
-	return c;
-}
 static __forceinline bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, __mmask8& mask, int min_bits = 6) {
 	if (n < ((1ULL) << min_bits)) return false;
-	int depths = get_depth(n);
+	int depths = get_depth(n, 3);
 	int max_bits = depths * 3;
 	stride = (1ULL) << (max_bits - 3);
 	if (stride == n) {
@@ -609,26 +600,26 @@ static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_dep
 		;
 }
 
-bool sieve_sort_avx2(uint32_t** pa, size_t n, int omp_depth)
+bool sieve_sort_avx2(uint32_t* a, size_t n, int omp_depth)
 {
 	bool done = false;
 	//max(n)==256P (2^60)
-	if (pa == nullptr || *pa == nullptr)
+	if (a == nullptr)
 		return false;
 	else if (n <= 1)
 		return true;
 	else if (n == 2) {
-		uint32_t a0 = *(*pa + 0);
-		uint32_t a1 = *(*pa + 1);
-		*(*pa + 0) = std::min(a0, a1);
-		*(*pa + 1) = std::max(a0, a1);
+		uint32_t a0 = *(a + 0);
+		uint32_t a1 = *(a + 1);
+		*(a + 0) = std::min(a0, a1);
+		*(a + 1) = std::max(a0, a1);
 		return true;
 	}
 	else {
 		uint32_t* result = new uint32_t[n];
 		if (result != nullptr) {
-			int max_depth = get_depth(n);
-			done = sieve_sort_core(*pa, n, result, max_depth, max_depth, omp_depth);
+			int max_depth = get_depth(n, 3);
+			done = sieve_sort_core(a, n, result, max_depth, max_depth, omp_depth);
 			delete[] result;
 		}
 	}

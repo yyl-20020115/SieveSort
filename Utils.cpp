@@ -16,3 +16,13 @@ int get_top_bit_index(size_t n) {
 	int c = (int)_lzcnt_u64(n);
 	return n == 0ULL ? 0 : 64 - c;
 }
+
+int get_depth(size_t n, int shift) {
+	int c = 0;
+	for (int t = 0; ; t += shift) {
+		n >>= shift;
+		c++;
+		if (n == 0ULL) break;
+	}
+	return c;
+}
