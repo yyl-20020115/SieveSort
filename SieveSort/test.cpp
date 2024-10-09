@@ -207,7 +207,7 @@ static bool has_avx512() {
 
 	int regs[4] = { 16,0,0,0 };
 
-	__cpuid(regs, 0x7); // Call CPUID with feature identifier
+	__cpuid(regs, 0x7);
 
 	return (regs[1] & (1 << 16)) != 0;
 

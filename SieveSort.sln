@@ -3,7 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.11.35312.102
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SieveSort", "SieveSort.vcxproj", "{C8C44B2F-CF61-40EB-9085-156FDFA7FBDB}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SieveSort", "SieveSort\SieveSort.vcxproj", "{C8C44B2F-CF61-40EB-9085-156FDFA7FBDB}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SieveSortCUDA", "SieveSortCUDA\SieveSortCUDA.vcxproj", "{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,14 @@ Global
 		{C8C44B2F-CF61-40EB-9085-156FDFA7FBDB}.Release|x64.Build.0 = Release|x64
 		{C8C44B2F-CF61-40EB-9085-156FDFA7FBDB}.Release|x86.ActiveCfg = Release|Win32
 		{C8C44B2F-CF61-40EB-9085-156FDFA7FBDB}.Release|x86.Build.0 = Release|Win32
+		{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}.Debug|x64.ActiveCfg = Debug|x64
+		{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}.Debug|x64.Build.0 = Debug|x64
+		{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}.Debug|x86.ActiveCfg = Debug|x64
+		{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}.Debug|x86.Build.0 = Debug|x64
+		{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}.Release|x64.ActiveCfg = Release|x64
+		{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}.Release|x64.Build.0 = Release|x64
+		{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}.Release|x86.ActiveCfg = Release|x64
+		{2E6CCDEB-FA8E-4C38-99A8-91A75652213D}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
