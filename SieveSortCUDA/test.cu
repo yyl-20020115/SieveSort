@@ -9,7 +9,7 @@
 static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) {
 	uint32_t** results_sieve = new uint32_t * [max_repeats];
 	uint32_t** results_stdst = new uint32_t * [max_repeats];
-#pragma omp parallel for
+//#pragma omp parallel for
 	for (int c = 0; c < max_repeats; c++) {
 		results_sieve[c] = new uint32_t[count];
 		results_stdst[c] = new uint32_t[count];
@@ -61,8 +61,8 @@ static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) 
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_cuda(size_t start = 16, size_t end = 24) {
-	for (size_t i = start; i <= end; i++) {
+static void long_tests_cuda(size_t start = 8, size_t end = 24) {
+	for (size_t i = start; i <= end; i+=4) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
 		long_test_cuda((1ULL << i), 1);

@@ -25,7 +25,7 @@ const size_t _128P = _16P << 3;		//57
 const size_t _1E = _128P << 3;		//60
 const size_t _8E = _1E << 3;		//63
 
-__device__ static bool sieve_sort_64(uint32_t* a/*[64]*/, size_t n, uint32_t* result) {
+__device__ static bool sieve_sort_256(uint32_t* a/*[256]*/, size_t n, uint32_t* result) {
 	for (size_t i = 1; i < n; i++) {
 		// 选择要插入的元素
 		uint32_t key = a[i];
@@ -87,9 +87,7 @@ __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size
 }
 
 __global__ static void sieve_sort_kernel(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth);
-__global__ static void sieve_sort_kernel_(
-	uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth,
-	size_t loops, size_t stride, size_t reminder) {
+__global__ static void sieve_sort_kernel_bridge(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, size_t loops, size_t stride, size_t reminder) {
 	unsigned int i = threadIdx.x;
 	sieve_sort_kernel<<<1,1>>>(
 		a + i * stride,
@@ -98,13 +96,13 @@ __global__ static void sieve_sort_kernel_(
 		max_depth, depth - 1);
 }
 __global__ static void sieve_sort_kernel(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth) {
-	if (n <= 64) {
-		sieve_sort_64(a, n, result);
+	if (n <= 256) {
+		sieve_sort_256(a, n, result);
 		return;
 	}
 	size_t loops = 0, stride = 0, reminder = 0;
 	if (!get_config(n, loops, stride, reminder, 8, 4)) return;
-	sieve_sort_kernel_ <<<1, loops >>> (a, n, result, max_depth, depth, loops, stride, reminder);
+	sieve_sort_kernel_bridge <<<1, loops >>> (a, n, result, max_depth, depth, loops, stride, reminder);
 	__syncthreads();
 
 	int delta_depth = max_depth - depth;
