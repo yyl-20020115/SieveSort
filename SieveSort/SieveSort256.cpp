@@ -96,7 +96,6 @@ static __forceinline __mmask8 _mm256_mask_cmpeq_epi64_mask_(__mmask8 mask, __m25
 	t |= ((r.m256i_u64[3] != 0) << 3);
 	return t & mask;
 }
-
 static __forceinline bool sieve_get_min(__mmask8 mask, __m256i a, uint32_t& _min, __mmask8& _mask_min) {
 	if (mask == 0) return false;
 	__m128i counts = _mm_setr_epi16(
@@ -291,8 +290,6 @@ static __forceinline int seive_get_min(uint32_t& p_min, __mmask8& _all_masks, __
 	}
 	return count;
 }
-
-
 bool sieve_sort_8(uint32_t* a /*[8]*/, size_t n, uint32_t* result/*[8]*/) {
 #ifdef USE_STD_SORT
 	std::sort(a, a + n);
@@ -378,7 +375,6 @@ static __forceinline __m256i _mm256_mask_inc(__mmask8 k, __m256i a) {
 		(k & (1 << 0)) ? 1 : 0
 	));
 }
-
 static __forceinline __m256i _mm256_mask_inc64(__mmask8 k, __m256i a) {
 	return _mm256_add_epi64(a, _mm256_set_epi64x(
 		(k & (1 << 3)) ? 1 : 0,
@@ -544,7 +540,6 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 	}
 	return false;
 }
-
 static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth);
 static bool sieve_sort_omp(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, int omp_depth) {
 	size_t loops = 0, stride = 0, reminder = 0;
@@ -582,7 +577,6 @@ static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_dep
 		: sieve_sort_omp(a, n, result, max_depth, depth, omp_depth)
 		;
 }
-
 bool sieve_sort_avx2(uint32_t* a, size_t n, int omp_depth)
 {
 	bool done = false;

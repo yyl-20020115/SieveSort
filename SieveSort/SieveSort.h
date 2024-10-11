@@ -14,8 +14,6 @@
 uint32_t generate_random_32(size_t range = 0ULL);
 uint64_t generate_random_64(uint64_t range = 0ULL);
 
-int get_top_bit_index(size_t n);
-
 __m256i sieve_sort8_32_loop(__m256i a, uint32_t* result);
 bool sieve_sort_8(uint32_t* a, size_t n, uint32_t* result);
 bool sieve_sort_64(uint32_t* a, size_t n, uint32_t* result);
