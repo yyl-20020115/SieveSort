@@ -2,6 +2,7 @@
 #include <intrin.h>
 
 static void short_tests_avx512() {
+	std::cout << "avx512" << std::endl;
 	const int max_retries = 100;
 	const int count = 8;
 	uint64_t result64x8[count] = { 0 };
@@ -91,6 +92,7 @@ static void long_test_avx512(const size_t count = 256, const int max_repeats = 1
 	delete[] results_sieve;
 	delete[] results_stdst;
 
+	std::cout << "avx512" << std::endl;
 	std::cout << "samples:" << count << std::endl;
 	std::cout << "repeats:" << max_repeats << std::endl;
 	std::cout << "omp: " << omp_get_max_threads() << " threads" << std::endl;
@@ -100,14 +102,15 @@ static void long_test_avx512(const size_t count = 256, const int max_repeats = 1
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_avx512(size_t start = 16, size_t end = 20) {
+static void long_tests_avx512(size_t start = 16, size_t end = 28) {
 	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
-		long_test_avx512((1ULL<<i), 1, 1);
+		long_test_avx512((1ULL << i), 1, 1);
 	}
 }
 static void short_tests_avx2() {
+	std::cout << "avx2" << std::endl;
 	const int count = 64;
 	const int max_retries = 1000;
 	uint32_t original[count] = { 0 };
@@ -174,7 +177,7 @@ static void long_test_avx2(size_t count = 64, int max_repeats = 1, int use_omp =
 	}
 	delete[] results_sieve;
 	delete[] results_stdst;
-
+	std::cout << "avx2" << std::endl;
 	std::cout << "samples:" << count << std::endl;
 	std::cout << "repeats:" << max_repeats << std::endl;
 	std::cout << "omp: " << omp_get_max_threads() << " threads" << std::endl;
@@ -204,21 +207,21 @@ static void test512()
 }
 
 static bool has_avx512() {
-
 	int regs[4] = { 16,0,0,0 };
-
 	__cpuid(regs, 0x7);
-
 	return (regs[1] & (1 << 16)) != 0;
-
 }
 
 int main(int argc, char* argv[])
 {
-	if (has_avx512()) {
+	const int test_type = 3;
+
+	if ((test_type & 1 != 0) && has_avx512()) {
 		test512();
 	}
-	test256();
+	if ((test_type & 2) != 0) {
+		test256();
+	}
 	return 0;
 }
 
