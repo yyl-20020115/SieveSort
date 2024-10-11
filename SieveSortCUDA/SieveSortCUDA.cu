@@ -102,7 +102,7 @@ __global__ static void sieve_sort_kernel(uint32_t* a, size_t n, uint32_t* result
 	if (!get_config(n, loops, stride, reminder, 8, 4)) return;
 
 	sieve_sort_kernel_bridge << <1, loops >> > (a, n, result, max_depth, depth, loops, stride, reminder);
-	cudaDeviceSynchronize();
+	//cudaDeviceSynchronize();
 
 	int delta_depth = max_depth - depth;
 	if ((delta_depth & 1) == 1) {
