@@ -17,10 +17,19 @@ const size_t _16P = _1P << 4;   //56
 const size_t _256P = _16P << 4; //60
 
 static const __m256i _zero = _mm256_setzero_si256();
-static const __m512i zero = _mm512_setzero_si512();
-static const __m512i ones = _mm512_set1_epi32(1);
-static const __m512i ones64 = _mm512_set1_epi64(1);
 
+static  __m512i zero;
+static  __m512i ones;
+static  __m512i ones64;
+static bool inited = false;
+static void init_avx512() {
+	if (!inited) {
+		zero = _mm512_setzero_si512();
+		ones = _mm512_set1_epi32(1);
+		ones64 = _mm512_set1_epi64(1);
+		inited = true;
+	}
+}
 
 static __forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _min, __mmask16& _mask_min) {
 	if (mask != 0) {
@@ -537,6 +546,8 @@ static bool sieve_sort_core(uint32_t* a, size_t n, uint32_t* result, int max_dep
 
 bool sieve_sort_avx512(uint32_t* a, size_t n, int omp_depth)
 {
+	init_avx512();
+
 	bool done = false;
 	//max(n)==256P (2^60)
 	if (a == nullptr || n > _256P)
