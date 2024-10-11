@@ -16,6 +16,10 @@ const size_t _1P = _64T << 4;   //52
 const size_t _16P = _1P << 4;   //56
 const size_t _256P = _16P << 4; //60
 
+static const __m256i _zero = _mm256_setzero_si256();
+static const __m512i zero = _mm512_setzero_si512();
+static const __m512i ones = _mm512_set1_epi32(1);
+static const __m512i ones64 = _mm512_set1_epi64(1);
 
 
 static __forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _min, __mmask16& _mask_min) {
@@ -26,9 +30,7 @@ static __forceinline bool sieve_get_min(__mmask16 mask, __m512i a, uint32_t& _mi
 	}
 	return false;
 }
-static __forceinline bool sieve_get_min(__mmask16 mask, uint32_t a[16], uint32_t& _min, __mmask16& _mask_min) {
-	return sieve_get_min(mask, _mm512_loadu_epi32(a), _min, _mask_min);
-}
+
 static __forceinline bool sieve_get_min_max(__mmask16 mask, __m512i a, uint32_t& _min, uint32_t& _max, __mmask16& _mask_min, __mmask16& _mask_max) {
 	if (mask != 0) {
 		_mask_max = _mm512_mask_cmpeq_epu32_mask(mask, a, _mm512_set1_epi32(
@@ -50,7 +52,6 @@ static __forceinline bool sieve_get_min_max(__mmask8 mask, __m512i a, uint64_t& 
 	return false;
 }
 __m512i sieve_sort16_32_loop(__m512i a, uint32_t* result) {
-	static const __m512i zero = _mm512_setzero_si512();
 	__m512i target = zero;
 	__mmask16 mask = 0xffff;
 	__mmask16 _min_mask = 0, _max_mask = 0;
@@ -76,7 +77,6 @@ __m512i sieve_sort16_32_loop(__m512i a, uint32_t* result) {
 	return target;
 }
 __m512i sieve_sort8_64_loop(__m512i a, uint64_t* result) {
-	static const __m512i zero = _mm512_setzero_si512();
 	__m512i target = zero;
 	__mmask8 mask = 0xff;
 	__mmask8 _min_mask = 0, _max_mask = 0;
@@ -102,7 +102,6 @@ __m512i sieve_sort8_64_loop(__m512i a, uint64_t* result) {
 	return target;
 }
 __m512i sieve_sort16_32_direct(__m512i a, uint32_t* result) {
-	static const __m512i zero = _mm512_setzero_si512();
 	__m512i target = zero;
 	__mmask16 mask = 0xffff;
 	__mmask16 _min_mask = 0, _max_mask = 0;
@@ -233,7 +232,6 @@ __m512i sieve_sort16_32_direct(__m512i a, uint32_t* result) {
 	return target;
 }
 __m512i sieve_sort8_64_direct(__m512i a, uint64_t* result) {
-	static const __m512i zero = _mm512_setzero_si512();
 	__m512i target = zero;
 	__mmask8 mask = 0xff;
 	__mmask8 _min_mask = 0, _max_mask = 0;
@@ -303,7 +301,6 @@ __m512i sieve_sort8_64_direct(__m512i a, uint64_t* result) {
 	_mm512_storeu_epi64(result, target);
 	return target;
 }
-static const __m512i zero = _mm512_setzero_si512();
 static __forceinline int seive_get_min(uint32_t& p_min, __mmask16& _all_masks, __mmask16 masks[16], __m512i values[16]) {
 	if (_all_masks == 0) return 0;
 	int count = 0;
@@ -421,9 +418,7 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		return false;
 	const size_t large_stride_threshold = _16M; //(1ULL << 24); //(1ULL << 12))
 	const size_t extreme_large_stride_threshold = _16P; //(1ULL << 56);
-	static const __m512i zero = _mm512_setzero_si512();
 	if (stride <= large_stride_threshold) {
-		static const __m512i ones = _mm512_set1_epi32(1);
 		__m512i idx = zero;
 		__m512i top = zero;
 		uint32_t p = 0;
@@ -447,8 +442,6 @@ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder
 		return true;
 	}
 	else if (stride <= extreme_large_stride_threshold) {
-		static const __m256i _zero = _mm256_setzero_si256();
-		static const __m512i ones64 = _mm512_set1_epi64(1);
 		__m512i _idx_low_ = zero;
 		__m512i _idx_high = zero;
 		__m512i top_low_ = zero;

@@ -1,0 +1,370 @@
+i9-11900K 
+
+avx512
+64 pass
+32 pass
+all pass
+
+i=16
+==================================
+avx512
+samples:65536
+repeats:1
+omp: 16 threads
+sieve sort speed:0.457875K/s
+std sort speed:  0.276327K/s
+t1(seive):0.002184 s
+t2(std::):0.0036189 s
+ratio:165.701%
+
+i=17
+==================================
+avx512
+samples:131072
+repeats:1
+omp: 16 threads
+sieve sort speed:0.115828K/s
+std sort speed:  0.128398K/s
+t1(seive):0.0086335 s
+t2(std::):0.0077883 s
+ratio:90.2102%
+
+i=18
+==================================
+avx512
+samples:262144
+repeats:1
+omp: 16 threads
+sieve sort speed:0.0826487K/s
+std sort speed:  0.060757K/s
+t1(seive):0.0120994 s
+t2(std::):0.016459 s
+ratio:136.032%
+
+i=19
+==================================
+avx512
+samples:524288
+repeats:1
+omp: 16 threads
+sieve sort speed:0.050806K/s
+std sort speed:  0.0286187K/s
+t1(seive):0.0196827 s
+t2(std::):0.0349422 s
+ratio:177.527%
+
+i=20
+==================================
+avx512
+samples:1048576
+repeats:1
+omp: 16 threads
+sieve sort speed:0.0309221K/s
+std sort speed:  0.0135025K/s
+t1(seive):0.0323393 s
+t2(std::):0.0740601 s
+ratio:229.01%
+
+i=21
+==================================
+avx512
+samples:2097152
+repeats:1
+omp: 16 threads
+sieve sort speed:0.00624863K/s
+std sort speed:  0.00761976K/s
+t1(seive):0.160035 s
+t2(std::):0.131238 s
+ratio:82.0056%
+
+i=22
+==================================
+avx512
+samples:4194304
+repeats:1
+omp: 16 threads
+sieve sort speed:0.00482624K/s
+std sort speed:  0.0036362K/s
+t1(seive):0.207201 s
+t2(std::):0.275013 s
+ratio:132.728%
+
+i=23
+==================================
+avx512
+samples:8388608
+repeats:1
+omp: 16 threads
+sieve sort speed:0.00327332K/s
+std sort speed:  0.00174304K/s
+t1(seive):0.3055 s
+t2(std::):0.573711 s
+ratio:187.794%
+
+i=24
+==================================
+avx512
+samples:16777216
+repeats:1
+omp: 16 threads
+sieve sort speed:0.00190894K/s
+std sort speed:  0.000831404K/s
+t1(seive):0.523852 s
+t2(std::):1.20279 s
+ratio:229.604%
+
+i=25
+==================================
+avx512
+samples:33554432
+repeats:1
+omp: 16 threads
+sieve sort speed:0.000357108K/s
+std sort speed:  0.000399302K/s
+t1(seive):2.80028 s
+t2(std::):2.50437 s
+ratio:89.433%
+
+i=26
+==================================
+avx512
+samples:67108864
+repeats:1
+omp: 16 threads
+sieve sort speed:0.000287138K/s
+std sort speed:  0.000191306K/s
+t1(seive):3.48265 s
+t2(std::):5.22724 s
+ratio:150.094%
+
+i=27
+==================================
+avx512
+samples:134217728
+repeats:1
+omp: 16 threads
+sieve sort speed:0.000205406K/s
+std sort speed:  9.18456e-05K/s
+t1(seive):4.86841 s
+t2(std::):10.8878 s
+ratio:223.643%
+
+i=28
+==================================
+avx512
+samples:268435456
+repeats:1
+omp: 16 threads
+sieve sort speed:0.000124869K/s
+std sort speed:  4.41926e-05K/s
+t1(seive):8.00839 s
+t2(std::):22.6282 s
+ratio:282.556%
+avx2
+32 pass
+
+i=12
+==================================
+avx2
+samples:4096
+repeats:1
+omp: 16 threads
+sieve sort speed:1.01194K/s
+std sort speed:  5.8548K/s
+t1(seive):0.0009882 s
+t2(std::):0.0001708 s
+ratio:17.284%
+
+i=13
+==================================
+avx2
+samples:8192
+repeats:1
+omp: 16 threads
+sieve sort speed:0.24463K/s
+std sort speed:  2.76319K/s
+t1(seive):0.0040878 s
+t2(std::):0.0003619 s
+ratio:8.85317%
+
+i=14
+==================================
+avx2
+samples:16384
+repeats:1
+omp: 16 threads
+sieve sort speed:0.204198K/s
+std sort speed:  1.25016K/s
+t1(seive):0.0048972 s
+t2(std::):0.0007999 s
+ratio:16.3338%
+
+i=15
+==================================
+avx2
+samples:32768
+repeats:1
+omp: 16 threads
+sieve sort speed:0.134252K/s
+std sort speed:  0.580788K/s
+t1(seive):0.0074487 s
+t2(std::):0.0017218 s
+ratio:23.1154%
+
+i=16
+==================================
+avx2
+samples:65536
+repeats:1
+omp: 16 threads
+sieve sort speed:0.0281326K/s
+std sort speed:  0.272183K/s
+t1(seive):0.035546 s
+t2(std::):0.003674 s
+ratio:10.3359%
+
+i=17
+==================================
+avx2
+samples:131072
+repeats:1
+omp: 16 threads
+sieve sort speed:0.0218084K/s
+std sort speed:  0.129047K/s
+t1(seive):0.0458539 s
+t2(std::):0.0077491 s
+ratio:16.8995%
+
+i=18
+==================================
+avx2
+samples:262144
+repeats:1
+omp: 16 threads
+sieve sort speed:0.0155752K/s
+std sort speed:  0.0607821K/s
+t1(seive):0.0642046 s
+t2(std::):0.0164522 s
+ratio:25.6246%
+
+i=19
+==================================
+avx2
+samples:524288
+repeats:1
+omp: 16 threads
+sieve sort speed:0.00366907K/s
+std sort speed:  0.0345292K/s
+t1(seive):0.272548 s
+t2(std::):0.028961 s
+ratio:10.626%
+
+i=20
+==================================
+avx2
+samples:1048576
+repeats:1
+omp: 16 threads
+sieve sort speed:0.0030118K/s
+std sort speed:  0.0161236K/s
+t1(seive):0.332027 s
+t2(std::):0.0620208 s
+ratio:18.6794%
+
+i=21
+==================================
+avx2
+samples:2097152
+repeats:1
+omp: 16 threads
+sieve sort speed:0.00223422K/s
+std sort speed:  0.00777324K/s
+t1(seive):0.447584 s
+t2(std::):0.128646 s
+ratio:28.7424%
+
+i=22
+==================================
+avx2
+samples:4194304
+repeats:1
+omp: 16 threads
+sieve sort speed:0.000460343K/s
+std sort speed:  0.0036034K/s
+t1(seive):2.17229 s
+t2(std::):0.277516 s
+ratio:12.7753%
+
+i=23
+==================================
+avx2
+samples:8388608
+repeats:1
+omp: 16 threads
+sieve sort speed:0.000391451K/s
+std sort speed:  0.00171945K/s
+t1(seive):2.5546 s
+t2(std::):0.58158 s
+ratio:22.766%
+
+i=24
+==================================
+avx2
+samples:16777216
+repeats:1
+omp: 16 threads
+sieve sort speed:0.000289371K/s
+std sort speed:  0.000830103K/s
+t1(seive):3.45578 s
+t2(std::):1.20467 s
+ratio:34.8596%
+
+i=25
+==================================
+avx2
+samples:33554432
+repeats:1
+omp: 16 threads
+sieve sort speed:5.35678e-05K/s
+std sort speed:  0.000394269K/s
+t1(seive):18.6679 s
+t2(std::):2.53634 s
+ratio:13.5866%
+
+i=26
+==================================
+avx2
+samples:67108864
+repeats:1
+omp: 16 threads
+sieve sort speed:4.62062e-05K/s
+std sort speed:  0.000190598K/s
+t1(seive):21.6421 s
+t2(std::):5.24664 s
+ratio:24.2428%
+
+i=27
+==================================
+avx2
+samples:134217728
+repeats:1
+omp: 16 threads
+sieve sort speed:3.49348e-05K/s
+std sort speed:  9.18041e-05K/s
+t1(seive):28.6248 s
+t2(std::):10.8928 s
+ratio:38.0536%
+
+i=28
+==================================
+avx2
+samples:268435456
+repeats:1
+omp: 16 threads
+sieve sort speed:6.27591e-06K/s
+std sort speed:  4.40764e-05K/s
+t1(seive):159.339 s
+t2(std::):22.6879 s
+ratio:14.2387%
+
+****************************************************************************************************
