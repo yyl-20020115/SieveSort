@@ -41,9 +41,13 @@ static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) 
 	std::cout << "==================================" << std::endl;
 	//#pragma omp parallel for
 	for (int c = 0; c < max_repeats; c++) {
-		for (int d = 0; d < count; d++) {
-			if (results_sieve[c][d] != results_stdst[c][d]) {
-				std::cout << "found bad value at repeat " << c << " index " << d << std::endl;
+		bool beq = std::equal(results_sieve[c], results_sieve[c] + count, results_stdst[c]);
+		if (!beq) {
+			for (int d = 0; d < count; d++) {
+				if (results_sieve[c][d] != results_stdst[c][d]) {
+					std::cout << "found bad value at repeat " << c << " index " << d 
+						<<":"<<std::hex<< results_sieve[c][d]<<", "<< results_stdst[c][d]<<std::dec<< std::endl;
+				}
 			}
 		}
 		delete[] results_sieve[c];
@@ -61,8 +65,8 @@ static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) 
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_cuda(size_t start = 8, size_t end = 24) {
-	for (size_t i = start; i <= end; i+=4) {
+static void long_tests_cuda(size_t start = 12, size_t end = 16) {
+	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
 		long_test_cuda((1ULL << i), 1);

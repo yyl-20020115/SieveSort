@@ -27,18 +27,16 @@ const size_t _8E = _1E << 3;		//63
 
 __device__ static bool sieve_sort_256(uint32_t* a/*[256]*/, size_t n, uint32_t* result) {
 	for (size_t i = 1; i < n; i++) {
-		// 选择要插入的元素
 		uint32_t key = a[i];
-		// 从已排序序列的最后一个元素开始，向前比较
 		size_t j = i - 1;
-		// 如果当前元素小于它前面的元素，则将它前面的元素向后移动一位
 		while (j >= 0 && a[j] > key) {
 			a[j + 1] = a[j];
 			j--;
+			if (j == ~0ULL) break;
 		}
-		// 将选择的元素插入到正确的位置
 		a[j + 1] = key;
 	}
+	
 	for (size_t i = 0; i < n; i++) result[i] = a[i];
 	return true;
 }
@@ -89,7 +87,7 @@ __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size
 __global__ static void sieve_sort_kernel(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth);
 __global__ static void sieve_sort_kernel_bridge(uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth, size_t loops, size_t stride, size_t reminder) {
 	unsigned int i = threadIdx.x;
-	sieve_sort_kernel<<<1,1>>>(
+	sieve_sort_kernel << <1, 1 >> > (
 		a + i * stride,
 		(i == loops - 1 && reminder > 0) ? reminder : stride,
 		result + i * stride,
@@ -102,8 +100,9 @@ __global__ static void sieve_sort_kernel(uint32_t* a, size_t n, uint32_t* result
 	}
 	size_t loops = 0, stride = 0, reminder = 0;
 	if (!get_config(n, loops, stride, reminder, 8, 4)) return;
-	sieve_sort_kernel_bridge <<<1, loops >>> (a, n, result, max_depth, depth, loops, stride, reminder);
-	__syncthreads();
+
+	sieve_sort_kernel_bridge << <1, loops >> > (a, n, result, max_depth, depth, loops, stride, reminder);
+	cudaDeviceSynchronize();
 
 	int delta_depth = max_depth - depth;
 	if ((delta_depth & 1) == 1) {
@@ -133,25 +132,20 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 		cudaError_t cudaStatus;
 
 		// Choose which GPU to run on, change this on a multi-GPU system.
-		cudaStatus = cudaSetDevice(0);
 		cudaStatus = cudaMalloc((void**)&input, n * sizeof(uint32_t));
 		cudaStatus = cudaMalloc((void**)&result, n * sizeof(uint32_t));
 
-		if (result != nullptr && input!=nullptr) {
+		if (result != nullptr && input != nullptr) {
 			cudaStatus = cudaMemcpy(input, a, n * sizeof(uint32_t), cudaMemcpyHostToDevice);
+			//cudaStatus = cudaMemset(result, 0, n * sizeof(uint32_t));
 
 			int max_depth = get_depth(n, 4);
-			sieve_sort_kernel<<<1,1>>>(input, n, result, max_depth, max_depth);
-
-			cudaStatus = cudaDeviceSynchronize();
-			
+			sieve_sort_kernel << <1, 1 >> > (input, n, result, max_depth, max_depth);
 			cudaStatus = cudaMemcpy(a, input, n * sizeof(uint32_t), cudaMemcpyDeviceToHost);
+
 		}
 		cudaFree(result);
 		cudaFree(input);
-
-		cudaStatus = cudaDeviceReset();
-
 	}
 	return true;
 }
