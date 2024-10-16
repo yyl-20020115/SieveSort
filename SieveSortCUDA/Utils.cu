@@ -25,8 +25,8 @@ __device__ __host__ int get_depth(size_t n, int shift) {
 	}
 	return c;
 }
-__device__ bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, int min_bits, int shift) {
-	if (n < ((1ULL) << min_bits)) return false;
+__device__ __host__ bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, int min_bits, int shift) {
+	if (n <= ((1ULL) << min_bits)) return false;
 	int depths = get_depth(n, shift);
 	int max_bits = depths * shift;
 	stride = (1ULL) << (max_bits - shift);
