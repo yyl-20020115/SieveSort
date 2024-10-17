@@ -56,7 +56,7 @@ __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size
 		for (size_t i = 0; i < loops; i++)
 		{
 			ptr[i] = p;
-			top[i] = p + ((i == loops - 1 && reminder > 0) ? reminder : stride);;
+			top[i] = p + ((i == loops - 1 && reminder > 0) ? reminder : stride);
 			p += stride;
 		}
 
@@ -91,8 +91,6 @@ __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size
 	return false;
 }
 
-
-
 struct config {
 	uint32_t* a;
 	uint32_t* result;
@@ -111,8 +109,7 @@ struct config {
 };
 
 
-
-void make_configs(uint32_t* a, uint32_t* result, size_t n, int depth, std::map<int, std::vector<config>>& configs, int min_bits = 8, int shift = 4) {
+static void make_configs(uint32_t* a, uint32_t* result, size_t n, int depth, std::map<int, std::vector<config>>& configs, int min_bits = 8, int shift = 4) {
 	size_t loops = 0, stride = 0, reminder = 0;
 	if (get_config(n, loops, stride, reminder, min_bits, shift))
 	{
@@ -125,7 +122,7 @@ void make_configs(uint32_t* a, uint32_t* result, size_t n, int depth, std::map<i
 		}
 		for (size_t i = 0; i < loops; i++) {
 			make_configs(a + i * stride, result + i * stride,
-				(i < loops - 1) ? stride : reminder, depth + 1, configs, min_bits, shift);
+				(i == loops - 1 && reminder>0) ? reminder: stride, depth + 1, configs, min_bits, shift);
 		}
 	}
 	else {
@@ -139,51 +136,12 @@ void make_configs(uint32_t* a, uint32_t* result, size_t n, int depth, std::map<i
 	}
 }
 
-__global__ static void sieve_sort_kernel(uint32_t* p_atomic, uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth);
-__global__ static void sieve_sort_kernel_bridge(uint32_t* p_atomic, uint32_t* a, uint32_t* result, int max_depth, int depth, size_t loops, size_t stride, size_t reminder) {
-	unsigned int i = threadIdx.x;
-	sieve_sort_kernel << <1, 1 >> > (
-		p_atomic,
-		a + i * stride,
-		(i == loops - 1 && reminder > 0) ? reminder : stride,
-		result + i * stride,
-		max_depth, depth - 1);
-}
-__global__ static void sieve_sort_kernel(uint32_t* p_atomic, uint32_t* a, size_t n, uint32_t* result, int max_depth, int depth) {
-	int delta_depth = max_depth - depth;
-	if (n <= 256) {
-		sieve_sort_256(a, n, result);
-	}
-	else {
-		size_t loops = 0, stride = 0, reminder = 0;
-
-		if (!get_config(n, loops, stride, reminder, 8, 4)) return;
-
-		__shared__ uint32_t d_atomic;
-		d_atomic = 0;
-
-		uint32_t* p_atomic = &d_atomic;
-		sieve_sort_kernel_bridge << <1, loops >> > (p_atomic, a, result, max_depth, depth, loops, stride, reminder);
-
-		while (*p_atomic < loops)
-			;
-
-		if ((delta_depth & 1) == 1) {
-			uint32_t* p = result;
-			result = a;
-			a = p;
-		}
-		sieve_collect(n, loops, stride, reminder, result, a);
-	}
-	atomicAdd(p_atomic, 1);
-
-}
-
 __global__ static void sieve_sort_kerenl_with_config(config* configs, int max_depth, int depth) {
 	unsigned int index =
 		blockDim.x * blockIdx.x + threadIdx.x;
 
 	config* pc = configs + index;
+	//printf("n=%lld,index=%d\n", pc->n, index);
 	if (pc->n <= 256) {
 		sieve_sort_256(pc->a, pc->n, pc->result);
 	}
@@ -216,12 +174,10 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 	}
 	else {
 		std::map<int, std::vector<config>> configs;
-
-
 		uint32_t* input = nullptr;
 		uint32_t* result = nullptr;
 		cudaError_t cudaStatus;
-
+		cudaStatus = cudaSetDevice(0);
 		// Choose which GPU to run on, change this on a multi-GPU system.
 		cudaStatus = cudaMalloc((void**)&input, n * sizeof(uint32_t));
 		cudaStatus = cudaMalloc((void**)&result, n * sizeof(uint32_t));
@@ -229,9 +185,11 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 		if (result != nullptr && input != nullptr) {
 			config* configs_ = nullptr;
 			cudaStatus = cudaMemcpy(input, a, n * sizeof(uint32_t), cudaMemcpyHostToDevice);
+			cudaStatus = cudaMemset(result, 0, n * sizeof(uint32_t));
+
 			make_configs(input, result, n, 0, configs, 8, 4);
 			int max_depth = configs.size();
-			
+
 			for (int i = max_depth - 1; i >= 0; i--) {
 				std::vector<config>& config_list = configs[i];
 				size_t list_size = config_list.size();
@@ -241,13 +199,13 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 					cudaStatus = cudaMemcpy(configs_, pd, list_size * sizeof(config), cudaMemcpyHostToDevice);
 
 					if (list_size <= THREAD_NUM) {
-						sieve_sort_kerenl_with_config << <1, list_size >> > (configs_, max_depth, i);
+						sieve_sort_kerenl_with_config << <1, list_size >> > (configs_, max_depth - 1, i);
 						cudaThreadSynchronize();
 					}
 					else {
 						dim3 grid(ceil(list_size / (double)THREAD_NUM), 1, 1);
 						dim3 block(THREAD_NUM, 1, 1);
-						sieve_sort_kerenl_with_config << <grid, block >> > (configs_, max_depth, i);
+						sieve_sort_kerenl_with_config << <grid, block >> > (configs_, max_depth - 1, i);
 						cudaThreadSynchronize();
 					}
 					cudaFree(configs_);

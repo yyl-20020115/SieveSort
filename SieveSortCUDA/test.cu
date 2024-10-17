@@ -43,12 +43,13 @@ static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) 
 	for (int c = 0; c < max_repeats; c++) {
 		bool beq = std::equal(results_sieve[c], results_sieve[c] + count, results_stdst[c]);
 		if (!beq) {
-			for (int d = 0; d < count; d++) {
-				if (results_sieve[c][d] != results_stdst[c][d]) {
-					std::cout << "found bad value at repeat " << c << " index " << d 
-						<<":"<<std::hex<< results_sieve[c][d]<<", "<< results_stdst[c][d]<<std::dec<< std::endl;
-				}
-			}
+			std::cout << "!!!!!!mismatch" << std::endl;
+			//for (int d = 0; d < count; d++) {
+			//	if (results_sieve[c][d] != results_stdst[c][d]) {
+			//		std::cout << "found bad value at repeat " << c << " index " << d 
+			//			<<":"<<std::hex<< results_sieve[c][d]<<", "<< results_stdst[c][d]<<std::dec<< std::endl;
+			//	}
+			//}
 		}
 		delete[] results_sieve[c];
 		delete[] results_stdst[c];
@@ -65,10 +66,14 @@ static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) 
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_cuda(size_t start = 12, size_t end = 12) {
+static void long_tests_cuda(size_t start = 8, size_t end = 20) {
 	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
+		//  8, 9,10,11
+		// 12,13,14,15
+		// 16,17,18,19
+		// 20,21,22,23
 		long_test_cuda((1ULL << i), 1);
 	}
 }
