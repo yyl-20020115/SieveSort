@@ -146,7 +146,6 @@ __global__ static void sieve_sort_kerenl_with_config(partition* partitions, int 
 		blockDim.x * blockIdx.x + threadIdx.x;
 
 	partition* part = partitions + index;
-	//printf("n=%lld,index=%d\n", pc->n, index);
 	if (part->n <= 256) {
 		sieve_sort_256(part->a, part->n, part->result);
 	}
@@ -184,7 +183,6 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 		uint32_t* result = nullptr;
 		cudaError_t cudaStatus;
 		cudaStatus = cudaSetDevice(0);
-		// Choose which GPU to run on, change this on a multi-GPU system.
 		cudaStatus = cudaMalloc((void**)&input, n * sizeof(uint32_t));
 		cudaStatus = cudaMalloc((void**)&result, n * sizeof(uint32_t));
 
@@ -195,12 +193,8 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 			
 			make_partitions(input, result, n, 0, _partitions, 8, 4);
 			if (_partitions.size() == 0) goto exit_me;
-
 			int max_depth = _partitions.size() - 1;
-
 			size_t max_list_size = _partitions.at(max_depth).size();
-
-			//printf("n = %lld, max_depth=%d\n",n, max_depth);
 			cudaStatus = cudaMalloc((void**)&partitions, max_list_size * sizeof(partition));
 
 			for (int i = max_depth; i >= 0; i--) {
