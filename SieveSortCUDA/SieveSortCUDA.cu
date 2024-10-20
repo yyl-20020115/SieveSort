@@ -35,13 +35,17 @@ __device__ static bool sieve_sort_256(uint32_t* a/*[256]*/, size_t n, uint32_t* 
 		size_t j = i - 1;
 		while (j >= 0 && a[j] > key) {
 			a[j + 1] = a[j];
+			result[j + 1] = result[j];
 			j--;
 			if (j == ~0ULL) break;
 		}
 		a[j + 1] = key;
+		result[j + 1] = key;
 	}
 
-	for (size_t i = 0; i < n; i++) result[i] = a[i];
+	//for (size_t i = 0; i < n; i++) result[i] = a[i];
+	//memcpy(result, a, n * sizeof(uint32_t));
+
 	return true;
 }
 
@@ -92,14 +96,14 @@ __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size
 	return false;
 }
 
-struct config {
+struct partition {
 	uint32_t* a;
 	uint32_t* result;
 	size_t n;
 	size_t loops;
 	size_t stride;
 	size_t reminder;
-	config(uint32_t* a, uint32_t* result, size_t n, size_t loops, size_t stride, size_t reminder) {
+	partition(uint32_t* a, uint32_t* result, size_t n, size_t loops, size_t stride, size_t reminder) {
 		this->a = a;
 		this->result = result;
 		this->n = n;
@@ -110,45 +114,45 @@ struct config {
 };
 
 
-static void make_configs(uint32_t* a, uint32_t* result, size_t n, int depth, std::map<int, std::vector<config>>& configs, int min_bits = 8, int shift = 4) {
+static void make_partitions(uint32_t* a, uint32_t* result, size_t n, int depth, std::map<int, std::vector<partition>>& partitions, int min_bits = 8, int shift = 4) {
 	size_t loops = 0, stride = 0, reminder = 0;
 	if (get_config(n, loops, stride, reminder, min_bits, shift))
 	{
-		auto f = configs.find(depth);
-		if (f == configs.end()) {
-			configs.insert({ depth, { config(a, result, n,loops,stride,reminder) } });
+		auto f = partitions.find(depth);
+		if (f == partitions.end()) {
+			partitions.insert({ depth, { partition(a, result, n,loops,stride,reminder) } });
 		}
 		else {
-			f->second.push_back(config(a, result, n, loops, stride, reminder));
+			f->second.push_back(partition(a, result, n, loops, stride, reminder));
 		}
 		for (size_t i = 0; i < loops; i++) {
-			make_configs(a + i * stride, result + i * stride,
-				(i == loops - 1 && reminder>0) ? reminder: stride, depth + 1, configs, min_bits, shift);
+			make_partitions(a + i * stride, result + i * stride,
+				(i == loops - 1 && reminder>0) ? reminder: stride, depth + 1, partitions, min_bits, shift);
 		}
 	}
 	else {
-		auto f = configs.find(depth);
-		if (f == configs.end()) {
-			configs.insert({ depth, { config(a,result,n,1,n,0) } });
+		auto f = partitions.find(depth);
+		if (f == partitions.end()) {
+			partitions.insert({ depth, { partition(a,result,n,1,n,0) } });
 		}
 		else {
-			f->second.push_back(config(a, result, n, 1, n, 0));
+			f->second.push_back(partition(a, result, n, 1, n, 0));
 		}
 	}
 }
 
-__global__ static void sieve_sort_kerenl_with_config(config* configs, int max_depth, int depth) {
+__global__ static void sieve_sort_kerenl_with_config(partition* partitions, int max_depth, int depth) {
 	unsigned int index =
 		blockDim.x * blockIdx.x + threadIdx.x;
 
-	config* pc = configs + index;
+	partition* part = partitions + index;
 	//printf("n=%lld,index=%d\n", pc->n, index);
-	if (pc->n <= 256) {
-		sieve_sort_256(pc->a, pc->n, pc->result);
+	if (part->n <= 256) {
+		sieve_sort_256(part->a, part->n, part->result);
 	}
 	else {
-		uint32_t* destination = pc->a;
-		uint32_t* source = pc->result;
+		uint32_t* destination = part->a;
+		uint32_t* source = part->result;
 		int delta_depth = max_depth - depth;
 		bool flip = ((delta_depth & 1) == 1);
 		flip = (((max_depth) & 1) == 1) ? !flip : flip;
@@ -157,7 +161,7 @@ __global__ static void sieve_sort_kerenl_with_config(config* configs, int max_de
 			source = destination;
 			destination = p;
 		}
-		sieve_collect(pc->n, pc->loops, pc->stride, pc->reminder, source, destination);
+		sieve_collect(part->n, part->loops, part->stride, part->reminder, source, destination);
 	}
 }
 __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
@@ -175,7 +179,7 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 		return true;
 	}
 	else {
-		std::map<int, std::vector<config>> configs;
+		std::map<int, std::vector<partition>> _partitions;
 		uint32_t* input = nullptr;
 		uint32_t* result = nullptr;
 		cudaError_t cudaStatus;
@@ -185,36 +189,39 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 		cudaStatus = cudaMalloc((void**)&result, n * sizeof(uint32_t));
 
 		if (result != nullptr && input != nullptr) {
-			config* configs_ = nullptr;
+			partition* partitions = nullptr;
 			cudaStatus = cudaMemcpy(input, a, n * sizeof(uint32_t), cudaMemcpyHostToDevice);
+			cudaStatus = cudaMemcpy(result, input, n * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
 			//cudaStatus = cudaMemset(result, 0, n * sizeof(uint32_t));
 
-			make_configs(input, result, n, 0, configs, 8, 4);
-			int max_depth = configs.size() - 1;
+			make_partitions(input, result, n, 0, _partitions, 8, 4);
+			int max_depth = _partitions.size() - 1;
+			size_t max_list_size = 0;
+			for (auto& partition:_partitions) {
+				size_t s = partition.second.size();
+				max_list_size = s > max_list_size ? s : max_list_size;
+			}
 			//printf("n = %lld, max_depth=%d\n",n, max_depth);
+			cudaStatus = cudaMalloc((void**)&partitions, max_list_size * sizeof(partition));
 
 			for (int i = max_depth; i >= 0; i--) {
-				std::vector<config>& config_list = configs[i];
-				size_t list_size = config_list.size();
+				std::vector<partition>& partitions_list = _partitions[i];
+				size_t list_size = partitions_list.size();
 				if (list_size > 0) {
-					void* pd = config_list.data();
-					cudaStatus = cudaMalloc((void**)&configs_, list_size * sizeof(config));
-					cudaStatus = cudaMemcpy(configs_, pd, list_size * sizeof(config), cudaMemcpyHostToDevice);
-
+					cudaStatus = cudaMemcpy(partitions, (void*)partitions_list.data(), list_size * sizeof(partition), cudaMemcpyHostToDevice);
 					if (list_size <= THREAD_NUM) {
-						sieve_sort_kerenl_with_config << <1, list_size >> > (configs_, max_depth, i);
-						cudaThreadSynchronize();
+						sieve_sort_kerenl_with_config << <1, list_size >> > (partitions, max_depth, i);
 					}
 					else {
 						dim3 grid(ceil(list_size / (double)THREAD_NUM), 1, 1);
 						dim3 block(THREAD_NUM, 1, 1);
-						sieve_sort_kerenl_with_config << <grid, block >> > (configs_, max_depth, i);
-						cudaThreadSynchronize();
+						sieve_sort_kerenl_with_config << <grid, block >> > (partitions, max_depth, i);
 					}
-					cudaFree(configs_);
+					cudaThreadSynchronize();
 				}
 			}
 
+			cudaFree(partitions);
 			cudaStatus = cudaMemcpy(a, input, n * sizeof(uint32_t), cudaMemcpyDeviceToHost);
 
 		}
