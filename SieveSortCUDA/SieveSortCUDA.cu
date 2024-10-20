@@ -5,6 +5,7 @@
 #include "SieveSortCUDA.cuh"
 #include <vector>
 #include <map>
+#include <algorithm>
 
 const size_t _8 = 1 << 3;			//3
 const size_t _64 = _8 << 3;			//6
@@ -62,7 +63,7 @@ __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size
 
 		size_t q = 0;
 		uint32_t buffer[16] = { 0 };
-		uint32_t min = ~0;
+		uint32_t min = ~0;                                                                                                                 
 		uint32_t count = 0;
 		while (q < n) {
 			min = ~0;
@@ -146,22 +147,23 @@ __global__ static void sieve_sort_kerenl_with_config(config* configs, int max_de
 		sieve_sort_256(pc->a, pc->n, pc->result);
 	}
 	else {
-		uint32_t* a = pc->a;
-		uint32_t* result = pc->result;
-
+		uint32_t* destination = pc->a;
+		uint32_t* source = pc->result;
 		int delta_depth = max_depth - depth;
-		if ((delta_depth & 1) == 1) {
-			uint32_t* p = result;
-			result = a;
-			a = p;
+		bool flip = ((delta_depth & 1) == 1);
+		flip = (((max_depth) & 1) == 1) ? !flip : flip;
+		if (flip) {
+			uint32_t* p = source;
+			source = destination;
+			destination = p;
 		}
-		sieve_collect(pc->n, pc->loops, pc->stride, pc->reminder, result, a);
+		sieve_collect(pc->n, pc->loops, pc->stride, pc->reminder, source, destination);
 	}
 }
 __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 {
 	//max(n)==256P (2^60)
-	if (a == nullptr)
+	if (a == nullptr) 
 		return false;
 	else if (n <= 1)
 		return true;
@@ -185,12 +187,13 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 		if (result != nullptr && input != nullptr) {
 			config* configs_ = nullptr;
 			cudaStatus = cudaMemcpy(input, a, n * sizeof(uint32_t), cudaMemcpyHostToDevice);
-			cudaStatus = cudaMemset(result, 0, n * sizeof(uint32_t));
+			//cudaStatus = cudaMemset(result, 0, n * sizeof(uint32_t));
 
 			make_configs(input, result, n, 0, configs, 8, 4);
-			int max_depth = configs.size();
+			int max_depth = configs.size() - 1;
+			//printf("n = %lld, max_depth=%d\n",n, max_depth);
 
-			for (int i = max_depth - 1; i >= 0; i--) {
+			for (int i = max_depth; i >= 0; i--) {
 				std::vector<config>& config_list = configs[i];
 				size_t list_size = config_list.size();
 				if (list_size > 0) {
@@ -199,13 +202,13 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 					cudaStatus = cudaMemcpy(configs_, pd, list_size * sizeof(config), cudaMemcpyHostToDevice);
 
 					if (list_size <= THREAD_NUM) {
-						sieve_sort_kerenl_with_config << <1, list_size >> > (configs_, max_depth - 1, i);
+						sieve_sort_kerenl_with_config << <1, list_size >> > (configs_, max_depth, i);
 						cudaThreadSynchronize();
 					}
 					else {
 						dim3 grid(ceil(list_size / (double)THREAD_NUM), 1, 1);
 						dim3 block(THREAD_NUM, 1, 1);
-						sieve_sort_kerenl_with_config << <grid, block >> > (configs_, max_depth - 1, i);
+						sieve_sort_kerenl_with_config << <grid, block >> > (configs_, max_depth, i);
 						cudaThreadSynchronize();
 					}
 					cudaFree(configs_);

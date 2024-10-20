@@ -3,7 +3,6 @@
 #include <immintrin.h>
 uint32_t generate_random_32(size_t range) {
 	uint64_t v0 = 0ULL;
-	//TODO:
 	int r = _rdrand64_step(&v0);
 	if (range >= (1ULL << 32)) range = (~0U);
 	uint32_t value = ((v0 >> 32) & (~0U)) ^ (v0 & (~0U));
@@ -11,7 +10,6 @@ uint32_t generate_random_32(size_t range) {
 }
 uint64_t generate_random_64(uint64_t range) {
 	uint64_t v0 = 0ULL;
-	//TODO:
 	int r = _rdrand64_step(&v0);
 	return range == 0ULL ? v0 : (uint64_t)((v0 / (double)(~0ULL)) * range);
 }

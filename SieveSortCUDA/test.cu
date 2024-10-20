@@ -9,7 +9,8 @@
 static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) {
 	uint32_t** results_sieve = new uint32_t * [max_repeats];
 	uint32_t** results_stdst = new uint32_t * [max_repeats];
-//#pragma omp parallel for
+
+	#pragma omp parallel for
 	for (int c = 0; c < max_repeats; c++) {
 		results_sieve[c] = new uint32_t[count];
 		results_stdst[c] = new uint32_t[count];
@@ -44,12 +45,6 @@ static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) 
 		bool beq = std::equal(results_sieve[c], results_sieve[c] + count, results_stdst[c]);
 		if (!beq) {
 			std::cout << "!!!!!!mismatch" << std::endl;
-			//for (int d = 0; d < count; d++) {
-			//	if (results_sieve[c][d] != results_stdst[c][d]) {
-			//		std::cout << "found bad value at repeat " << c << " index " << d 
-			//			<<":"<<std::hex<< results_sieve[c][d]<<", "<< results_stdst[c][d]<<std::dec<< std::endl;
-			//	}
-			//}
 		}
 		delete[] results_sieve[c];
 		delete[] results_stdst[c];
@@ -57,23 +52,35 @@ static void long_test_cuda(const size_t count = 256, const int max_repeats = 1) 
 	delete[] results_sieve;
 	delete[] results_stdst;
 
+	int deviceCount = 0;
+	cudaError_t cudaResult = cudaGetDeviceCount(&deviceCount);
+
+	if (cudaResult != cudaSuccess) {
+		std::cerr << "CUDA error: " << cudaGetErrorString(cudaResult) << std::endl;
+	}
+
+	for (int device = 0; device < deviceCount; ++device) {
+		cudaDeviceProp deviceProp;
+		if (cudaGetDeviceProperties(&deviceProp, device) == cudaSuccess) {
+			std::cout << "Device ID: " << device << " has " << deviceProp.multiProcessorCount << " multiprocessors." << std::endl;
+			std::cout << "Each multiprocessor has " << deviceProp.maxThreadsPerMultiProcessor / 32 << " warps (with 32 threads each)." << std::endl;
+			std::cout << "CUDA cores per multiprocessor: " << deviceProp.maxThreadsPerMultiProcessor << std::endl;
+		}
+	}
+
+
 	std::cout << "samples:" << count << std::endl;
 	std::cout << "repeats:" << max_repeats << std::endl;
-	std::cout << "omp: " << omp_get_max_threads() << " threads" << std::endl;
 	std::cout << "sieve sort speed:" << d1 << "K/s" << std::endl;
 	std::cout << "std sort speed:  " << d2 << "K/s" << std::endl;
 	std::cout << "t1(seive):" << elapsed1.count() << " s" << std::endl;
 	std::cout << "t2(std::):" << elapsed2.count() << " s" << std::endl;
 	std::cout << "ratio:" << (d1 / d2 * 100.0) << "%" << std::endl;
 }
-static void long_tests_cuda(size_t start = 8, size_t end = 20) {
+static void long_tests_cuda(size_t start = 8, size_t end = 32) {
 	for (size_t i = start; i <= end; i++) {
 		std::cout << std::endl;
 		std::cout << "i=" << i << std::endl;
-		//  8, 9,10,11
-		// 12,13,14,15
-		// 16,17,18,19
-		// 20,21,22,23
 		long_test_cuda((1ULL << i), 1);
 	}
 }
