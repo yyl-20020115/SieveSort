@@ -192,15 +192,14 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 			partition* partitions = nullptr;
 			cudaStatus = cudaMemcpy(input, a, n * sizeof(uint32_t), cudaMemcpyHostToDevice);
 			cudaStatus = cudaMemcpy(result, input, n * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
-			//cudaStatus = cudaMemset(result, 0, n * sizeof(uint32_t));
-
+			
 			make_partitions(input, result, n, 0, _partitions, 8, 4);
+			if (_partitions.size() == 0) goto exit_me;
+
 			int max_depth = _partitions.size() - 1;
-			size_t max_list_size = 0;
-			for (auto& partition:_partitions) {
-				size_t s = partition.second.size();
-				max_list_size = s > max_list_size ? s : max_list_size;
-			}
+
+			size_t max_list_size = _partitions.at(max_depth).size();
+
 			//printf("n = %lld, max_depth=%d\n",n, max_depth);
 			cudaStatus = cudaMalloc((void**)&partitions, max_list_size * sizeof(partition));
 
@@ -220,10 +219,10 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 					cudaThreadSynchronize();
 				}
 			}
-
+			
 			cudaFree(partitions);
 			cudaStatus = cudaMemcpy(a, input, n * sizeof(uint32_t), cudaMemcpyDeviceToHost);
-
+		exit_me:
 		}
 		cudaFree(result);
 		cudaFree(input);
