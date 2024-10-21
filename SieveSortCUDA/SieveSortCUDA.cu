@@ -116,9 +116,9 @@ struct partition {
 };
 
 
-static void make_partitions(uint32_t* a, uint32_t* result, size_t n, int depth, std::map<int, std::vector<partition>>& partitions, int min_bits = 8, int shift = 4) {
+static void make_partitions(uint32_t* a, uint32_t* result, size_t n, int depth, std::map<int, std::vector<partition>>& partitions, int min_bits = 8, int shift_bits = 4) {
 	size_t loops = 0, stride = 0, reminder = 0;
-	if (get_config(n, loops, stride, reminder, min_bits, shift))
+	if (get_config(n, loops, stride, reminder, min_bits, shift_bits))
 	{
 		auto f = partitions.find(depth);
 		if (f == partitions.end()) {
@@ -129,7 +129,7 @@ static void make_partitions(uint32_t* a, uint32_t* result, size_t n, int depth, 
 		}
 		for (size_t i = 0; i < loops; i++) {
 			make_partitions(a + i * stride, result + i * stride,
-				(i == loops - 1 && reminder > 0) ? reminder : stride, depth + 1, partitions, min_bits, shift);
+				(i == loops - 1 && reminder > 0) ? reminder : stride, depth + 1, partitions, min_bits, shift_bits);
 		}
 	}
 	else {
@@ -163,7 +163,7 @@ __global__ static void sieve_sort_kerenl_with_config(partition* partitions, int 
 		sieve_collect(part->n, part->loops, part->stride, part->reminder, source, destination);
 	}
 }
-__host__ bool sieve_sort_cuda(uint32_t* a, size_t n, const int min_bits, const int shift)
+__host__ bool sieve_sort_cuda(uint32_t* a, size_t n, const int min_bits, const int shift_bits)
 {
 	//max(n)==256P (2^60)
 	if (a == nullptr)
@@ -187,7 +187,7 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n, const int min_bits, const i
 		cudaStatus = cudaMalloc((void**)&result, n * sizeof(uint32_t));
 
 		if (result != nullptr && input != nullptr) {
-			make_partitions(input, result, n, 0, _partitions, min_bits, shift);
+			make_partitions(input, result, n, 0, _partitions, min_bits, shift_bits);
 			if (_partitions.size() == 0) goto exit_me;
 
 			cudaStatus = cudaMemcpy(input, a, n * sizeof(uint32_t), cudaMemcpyHostToDevice);

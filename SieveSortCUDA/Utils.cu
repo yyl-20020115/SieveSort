@@ -23,17 +23,17 @@ __device__ __host__ int get_depth(size_t n, int shift) {
 	}
 	return c;
 }
-__device__ __host__ bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, int min_bits, int shift) {
+__device__ __host__ bool get_config(size_t n, size_t& loops, size_t& stride, size_t& reminder, int min_bits, int shift_bits) {
 	if (n <= ((1ULL) << min_bits)) return false;
-	int depths = get_depth(n, shift);
-	int max_bits = depths * shift;
-	stride = (1ULL) << (max_bits - shift);
+	int depths = get_depth(n, shift_bits);
+	int max_bits = depths * shift_bits;
+	stride = (1ULL) << (max_bits - shift_bits);
 	if (stride == n) {
-		stride = n >> shift;
+		stride = n >> shift_bits;
 		reminder = 0;
 	}
 	else {
-		reminder = n & (~((~0ULL) << (max_bits - shift)));
+		reminder = n & (~((~0ULL) << (max_bits - shift_bits)));
 	}
 	loops = (n - reminder) / stride + (reminder > 0);
 	return true;
