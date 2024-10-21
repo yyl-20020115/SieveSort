@@ -204,12 +204,15 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n, const int min_bits, const i
 				if (list_size > 0) {
 					cudaStatus = cudaMemcpy(partitions, (void*)partitions_list.data(), list_size * sizeof(partition), cudaMemcpyHostToDevice);
 					if (list_size <= THREAD_NUM) {
-						sieve_sort_kerenl_with_config << <1, list_size >> > (partitions, max_depth, i, min_bits);
+						sieve_sort_kerenl_with_config <<<
+							1, list_size 
+							>>> (partitions, max_depth, i, min_bits);
 					}
 					else {
-						dim3 grid(ceil(list_size / (double)THREAD_NUM), 1, 1);
-						dim3 block(THREAD_NUM, 1, 1);
-						sieve_sort_kerenl_with_config << <grid, block >> > (partitions, max_depth, i, min_bits);
+						sieve_sort_kerenl_with_config <<<
+							dim3(ceil(list_size / (double)THREAD_NUM), 1, 1),
+							dim3(THREAD_NUM, 1, 1) 
+							>>> (partitions, max_depth, i, min_bits);
 					}
 					cudaThreadSynchronize();
 				}
@@ -218,6 +221,7 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n, const int min_bits, const i
 			cudaFree(partitions);
 			cudaStatus = cudaMemcpy(a, input, n * sizeof(uint32_t), cudaMemcpyDeviceToHost);
 		exit_me:
+			;
 		}
 		cudaFree(result);
 		cudaFree(input);
