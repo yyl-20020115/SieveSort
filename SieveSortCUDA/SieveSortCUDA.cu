@@ -29,7 +29,7 @@ const size_t _128P = _16P << 3;		//57
 const size_t _1E = _128P << 3;		//60
 const size_t _8E = _1E << 3;		//63
 
-__device__ static bool sieve_sort_256(uint32_t* a/*[256]*/, size_t n, uint32_t* result) {
+__device__ static bool sieve_sort_insert(uint32_t* a/*[256]*/, size_t n, uint32_t* result) {
 	for (size_t i = 1; i < n; i++) {
 		uint32_t key = a[i];
 		size_t j = i - 1;
@@ -42,21 +42,21 @@ __device__ static bool sieve_sort_256(uint32_t* a/*[256]*/, size_t n, uint32_t* 
 		a[j + 1] = key;
 		result[j + 1] = key;
 	}
-
-	//for (size_t i = 0; i < n; i++) result[i] = a[i];
-	//memcpy(result, a, n * sizeof(uint32_t));
-
 	return true;
 }
 
 __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size_t reminder,
 	uint32_t* source, uint32_t* destination) {
-	if (n == 0 || loops == 0 || loops > 16 || source == nullptr || destination == nullptr)
+	if (n == 0 || loops == 0 || source == nullptr || destination == nullptr)
 		return false;
 	else
 	{
-		size_t ptr[16] = { 0 };
-		size_t top[16] = { 0 };
+		size_t* ptr = new size_t[loops];
+		size_t* top = new size_t[loops];
+		uint32_t* buffer = new uint32_t[loops];// { 0 };
+		memset(ptr, 0, loops * sizeof(size_t));
+		memset(top, 0, loops * sizeof(size_t));
+		memset(buffer, 0, sizeof(uint32_t) * loops);
 		size_t p = 0;
 		for (size_t i = 0; i < loops; i++)
 		{
@@ -66,8 +66,7 @@ __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size
 		}
 
 		size_t q = 0;
-		uint32_t buffer[16] = { 0 };
-		uint32_t min = ~0;                                                                                                                 
+		uint32_t min = ~0;
 		uint32_t count = 0;
 		while (q < n) {
 			min = ~0;
@@ -91,6 +90,9 @@ __device__ static bool sieve_collect(size_t n, size_t loops, size_t stride, size
 				destination[q++] = min;
 			}
 		}
+		delete[] buffer;
+		delete[] ptr;
+		delete[] top;
 		return true;
 	}
 	return false;
@@ -127,7 +129,7 @@ static void make_partitions(uint32_t* a, uint32_t* result, size_t n, int depth, 
 		}
 		for (size_t i = 0; i < loops; i++) {
 			make_partitions(a + i * stride, result + i * stride,
-				(i == loops - 1 && reminder>0) ? reminder: stride, depth + 1, partitions, min_bits, shift);
+				(i == loops - 1 && reminder > 0) ? reminder : stride, depth + 1, partitions, min_bits, shift);
 		}
 	}
 	else {
@@ -141,13 +143,11 @@ static void make_partitions(uint32_t* a, uint32_t* result, size_t n, int depth, 
 	}
 }
 
-__global__ static void sieve_sort_kerenl_with_config(partition* partitions, int max_depth, int depth) {
-	unsigned int index =
-		blockDim.x * blockIdx.x + threadIdx.x;
-
+__global__ static void sieve_sort_kerenl_with_config(partition* partitions, int max_depth, int depth, int min_bits) {
+	unsigned int index = blockDim.x * blockIdx.x + threadIdx.x;
 	partition* part = partitions + index;
-	if (part->n <= 256) {
-		sieve_sort_256(part->a, part->n, part->result);
+	if (part->n <= (1ULL << min_bits)) {
+		sieve_sort_insert(part->a, part->n, part->result);
 	}
 	else {
 		uint32_t* destination = part->a;
@@ -163,10 +163,10 @@ __global__ static void sieve_sort_kerenl_with_config(partition* partitions, int 
 		sieve_collect(part->n, part->loops, part->stride, part->reminder, source, destination);
 	}
 }
-__host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
+__host__ bool sieve_sort_cuda(uint32_t* a, size_t n, const int min_bits, const int shift)
 {
 	//max(n)==256P (2^60)
-	if (a == nullptr) 
+	if (a == nullptr)
 		return false;
 	else if (n <= 1)
 		return true;
@@ -187,14 +187,15 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 		cudaStatus = cudaMalloc((void**)&result, n * sizeof(uint32_t));
 
 		if (result != nullptr && input != nullptr) {
-			partition* partitions = nullptr;
+			make_partitions(input, result, n, 0, _partitions, min_bits, shift);
+			if (_partitions.size() == 0) goto exit_me;
+
 			cudaStatus = cudaMemcpy(input, a, n * sizeof(uint32_t), cudaMemcpyHostToDevice);
 			cudaStatus = cudaMemcpy(result, input, n * sizeof(uint32_t), cudaMemcpyDeviceToDevice);
-			
-			make_partitions(input, result, n, 0, _partitions, 8, 4);
-			if (_partitions.size() == 0) goto exit_me;
+
 			int max_depth = _partitions.size() - 1;
 			size_t max_list_size = _partitions.at(max_depth).size();
+			partition* partitions = nullptr;
 			cudaStatus = cudaMalloc((void**)&partitions, max_list_size * sizeof(partition));
 
 			for (int i = max_depth; i >= 0; i--) {
@@ -203,17 +204,17 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 				if (list_size > 0) {
 					cudaStatus = cudaMemcpy(partitions, (void*)partitions_list.data(), list_size * sizeof(partition), cudaMemcpyHostToDevice);
 					if (list_size <= THREAD_NUM) {
-						sieve_sort_kerenl_with_config << <1, list_size >> > (partitions, max_depth, i);
+						sieve_sort_kerenl_with_config << <1, list_size >> > (partitions, max_depth, i, min_bits);
 					}
 					else {
 						dim3 grid(ceil(list_size / (double)THREAD_NUM), 1, 1);
 						dim3 block(THREAD_NUM, 1, 1);
-						sieve_sort_kerenl_with_config << <grid, block >> > (partitions, max_depth, i);
+						sieve_sort_kerenl_with_config << <grid, block >> > (partitions, max_depth, i, min_bits);
 					}
 					cudaThreadSynchronize();
 				}
 			}
-			
+
 			cudaFree(partitions);
 			cudaStatus = cudaMemcpy(a, input, n * sizeof(uint32_t), cudaMemcpyDeviceToHost);
 		exit_me:
