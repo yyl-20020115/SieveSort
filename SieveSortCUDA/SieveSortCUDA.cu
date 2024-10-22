@@ -163,7 +163,7 @@ __global__ static void sieve_sort_kerenl_with_config(partition* partitions, int 
 		sieve_collect(part->n, part->loops, part->stride, part->reminder, source, destination);
 	}
 }
-__host__ bool sieve_sort_cuda(uint32_t* a, size_t n, const int min_bits, const int shift_bits)
+__host__ bool sieve_sort_cuda(uint32_t* a, size_t n)
 {
 	//max(n)==256P (2^60)
 	if (a == nullptr)
@@ -178,6 +178,8 @@ __host__ bool sieve_sort_cuda(uint32_t* a, size_t n, const int min_bits, const i
 		return true;
 	}
 	else {
+		const int min_bits = 8;
+		const int shift_bits = 4;
 		std::map<int, std::vector<partition>> _partitions;
 		uint32_t* input = nullptr;
 		uint32_t* result = nullptr;
